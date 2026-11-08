@@ -1,0 +1,396 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bap.mersin.edu.tr/schemas/structured-submission.schema.json",
+  "title": "Mersin University BAP Structured Submission & Evaluation Schema",
+  "description": "Standard schema for OCR extraction, deterministic rules, RAG findings, and version diff reports in the bap-advisor system.",
+  "type": "object",
+  "definitions": {
+    "SubmissionType": {
+      "type": "string",
+      "enum": [
+        "NEW_PROJECT",
+        "OPEN_ACCESS",
+        "ADDITIONAL_BUDGET",
+        "ADDITIONAL_TIME",
+        "PROCUREMENT_ADVANCE"
+      ]
+    },
+    "DocumentRole": {
+      "type": "string",
+      "enum": [
+        "APPLICATION_FORM",
+        "BUDGET_TABLE",
+        "PROFORMA_INVOICE",
+        "TECHNICAL_SPEC",
+        "ETHICS_APPROVAL",
+        "THESIS_PROPOSAL",
+        "SIGNED_PETITION",
+        "PUBLICATION_PROOF",
+        "OTHER"
+      ]
+    },
+    "BudgetCategory": {
+      "type": "string",
+      "enum": [
+        "CONSUMABLE",
+        "EQUIPMENT",
+        "SERVICE_PURCHASE",
+        "TRAVEL",
+        "PUBLICATION",
+        "OTHER"
+      ]
+    },
+    "JournalQuartile": {
+      "type": "string",
+      "enum": [
+        "Q1_TOP10",
+        "Q1_OTHER",
+        "Q2",
+        "Q3",
+        "Q4"
+      ]
+    },
+    "BudgetLineItem": {
+      "type": "object",
+      "required": [
+        "category",
+        "name",
+        "total_tl"
+      ],
+      "properties": {
+        "category": {
+          "$ref": "#/definitions/BudgetCategory"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "quantity": {
+          "type": ["number", "null"],
+          "minimum": 0
+        },
+        "unit": {
+          "type": ["string", "null"]
+        },
+        "unit_price_tl": {
+          "type": ["number", "null"],
+          "minimum": 0
+        },
+        "total_tl": {
+          "type": "number",
+          "minimum": 0
+        },
+        "vat_included": {
+          "type": ["boolean", "null"],
+          "default": true
+        },
+        "days": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "daily_rate_tl": {
+          "type": ["number", "null"],
+          "minimum": 0
+        },
+        "proforma_count": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "has_technical_spec": {
+          "type": ["boolean", "null"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "StructuredSubmissionData": {
+      "type": "object",
+      "required": [
+        "detected_submission_type",
+        "wet_signature_present",
+        "budget_line_items",
+        "detected_attachments"
+      ],
+      "properties": {
+        "detected_submission_type": {
+          "$ref": "#/definitions/SubmissionType"
+        },
+        "detected_project_code": {
+          "type": ["string", "null"],
+          "description": "Project code if detected (e.g., TP1, TP2, TP3, AP1, AP2, AP3, AP4, AP7, AP9, WOS_Q1_TOP10, WOS_Q1_OTHER, WOS_Q2)"
+        },
+        "applicant_name": {
+          "type": ["string", "null"]
+        },
+        "applicant_title": {
+          "type": ["string", "null"],
+          "description": "Academic title (e.g. Prof. Dr., Doç. Dr., Dr. Öğr. Üyesi, etc.)"
+        },
+        "department": {
+          "type": ["string", "null"]
+        },
+        "project_title": {
+          "type": ["string", "null"]
+        },
+        "requested_budget_total_tl": {
+          "type": ["number", "null"],
+          "minimum": 0
+        },
+        "existing_approved_budget_tl": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "description": "Pre-existing approved budget for additional budget requests"
+        },
+        "requested_duration_months": {
+          "type": ["integer", "null"],
+          "minimum": 1
+        },
+        "existing_duration_months": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Pre-existing project duration for additional time requests"
+        },
+        "budget_line_items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/BudgetLineItem"
+          }
+        },
+        "journal_quartile": {
+          "type": ["string", "null"],
+          "enum": ["Q1_TOP10", "Q1_OTHER", "Q2", "Q3", "Q4", null]
+        },
+        "wet_signature_present": {
+          "type": "boolean",
+          "description": "Whether an authentic wet ink signature was detected on the scanned automation form"
+        },
+        "ethics_required_keywords_detected": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether human/animal survey or clinical trial keywords were found in the submission"
+        },
+        "detected_attachments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/DocumentRole"
+          }
+        },
+        "notes": {
+          "type": ["string", "null"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "EvaluationModuleFlags": {
+      "type": "object",
+      "properties": {
+        "run_deterministic_rules": {
+          "type": "boolean",
+          "default": true
+        },
+        "run_rag_checklist": {
+          "type": "boolean",
+          "default": true
+        },
+        "generate_action_drafts": {
+          "type": "boolean",
+          "default": true
+        },
+        "llm_provider_override": {
+          "type": ["string", "null"],
+          "enum": ["nanogpt", "ollama", "vllm", null]
+        },
+        "llm_model_override": {
+          "type": ["string", "null"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "FindingSeverity": {
+      "type": "string",
+      "enum": [
+        "COMPLIANT",
+        "VIOLATION",
+        "MISSING_DOCUMENT",
+        "AMBIGUOUS_COMMISSION"
+      ]
+    },
+    "FindingSource": {
+      "type": "string",
+      "enum": [
+        "DETERMINISTIC_RULE",
+        "RAG_LLM"
+      ]
+    },
+    "RuleCategory": {
+      "type": "string",
+      "enum": [
+        "BUDGET",
+        "DURATION",
+        "ELIGIBILITY",
+        "DOCUMENTS",
+        "PROCUREMENT",
+        "OPEN_ACCESS",
+        "FORMAL_SIGNATURE"
+      ]
+    },
+    "FindingItem": {
+      "type": "object",
+      "required": [
+        "source_type",
+        "rule_code",
+        "category",
+        "severity",
+        "title_tr",
+        "explanation_tr",
+        "regulation_doc_name",
+        "regulation_article_ref"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "source_type": {
+          "$ref": "#/definitions/FindingSource"
+        },
+        "rule_code": {
+          "type": "string"
+        },
+        "category": {
+          "$ref": "#/definitions/RuleCategory"
+        },
+        "severity": {
+          "$ref": "#/definitions/FindingSeverity"
+        },
+        "title_tr": {
+          "type": "string"
+        },
+        "explanation_tr": {
+          "type": "string"
+        },
+        "regulation_doc_name": {
+          "type": "string",
+          "description": "Concrete title of the MEÜ / YÖK regulation document"
+        },
+        "regulation_article_ref": {
+          "type": "string",
+          "description": "Concrete article and clause reference (e.g. MEÜ BAP Yönergesi Madde 11/3)"
+        },
+        "verbatim_quote": {
+          "type": ["string", "null"],
+          "description": "Exact excerpt from the regulation citation"
+        },
+        "expected_value": {
+          "type": ["string", "null"]
+        },
+        "actual_value": {
+          "type": ["string", "null"]
+        },
+        "officer_override_status": {
+          "type": ["string", "null"],
+          "enum": ["APPROVED", "REJECTED", "WAIVED", null]
+        },
+        "officer_override_reason": {
+          "type": ["string", "null"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "VersionDiffReport": {
+      "type": "object",
+      "required": [
+        "from_version",
+        "to_version",
+        "budget_diff_tl",
+        "duration_diff_months",
+        "budget_items_added",
+        "budget_items_removed",
+        "budget_items_modified",
+        "resolved_findings",
+        "new_findings",
+        "unresolved_findings",
+        "documents_added",
+        "documents_removed",
+        "summary_tr"
+      ],
+      "properties": {
+        "from_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "to_version": {
+          "type": "integer",
+          "minimum": 2
+        },
+        "budget_diff_tl": {
+          "type": "number",
+          "description": "Difference in total requested budget (to_version - from_version)"
+        },
+        "duration_diff_months": {
+          "type": "integer",
+          "description": "Difference in duration in months (to_version - from_version)"
+        },
+        "budget_items_added": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/BudgetLineItem"
+          }
+        },
+        "budget_items_removed": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/BudgetLineItem"
+          }
+        },
+        "budget_items_modified": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "field", "old_value", "new_value"],
+            "properties": {
+              "name": { "type": "string" },
+              "field": { "type": "string" },
+              "old_value": { "type": ["string", "number", "null"] },
+              "new_value": { "type": ["string", "number", "null"] }
+            }
+          }
+        },
+        "resolved_findings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/FindingItem"
+          }
+        },
+        "new_findings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/FindingItem"
+          }
+        },
+        "unresolved_findings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/FindingItem"
+          }
+        },
+        "documents_added": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "documents_removed": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "summary_tr": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$ref": "#/definitions/StructuredSubmissionData"
+}

@@ -1,0 +1,35 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: bap-advisor-core-api
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/bap_advisor?currentSchema=core}
+    username: ${SPRING_DATASOURCE_USERNAME:bap_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:bap_password_change_me}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        default_schema: core
+  flyway:
+    enabled: true
+    schemas: core
+    default-schema: core
+    locations: classpath:db/migration
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:super_secret_jwt_signing_key_at_least_256_bits_long_for_hmac_sha256_mersin_bap}
+    expiration-hours: ${JWT_EXPIRATION_HOURS:24}
+  security:
+    internal-service-token: ${INTERNAL_SERVICE_TOKEN:bap_internal_service_secure_token_secret_key_meu_2026}
+  storage:
+    upload-dir: ${STORAGE_DIR:./data/uploads}
+    regulations-dir: ${REGULATIONS_DIR:./data/regulations}
+  ai-engine:
+    base-url: ${AI_ENGINE_BASE_URL:http://localhost:8001}

@@ -1,0 +1,57 @@
+[project]
+name = "bap-advisor-ai-engine"
+version = "0.1.0"
+description = "Mersin University BAP Regulation Compliance and Pre-Review System - AI & OCR Engine"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    # Web framework & server
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "python-multipart>=0.0.12",
+    "pydantic>=2.9.2",
+    "pydantic-settings>=2.6.0",
+    "httpx>=0.27.2",
+    
+    # LLM Gateway
+    "openai>=1.54.0",
+    
+    # Database, ORM & Vector extension
+    "sqlalchemy>=2.0.36",
+    "psycopg[binary]>=3.2.3",
+    "pgvector>=0.3.6",
+    "alembic>=1.13.3",
+    
+    # Document parsing & OCR (Agent 3)
+    "pymupdf>=1.24.13",
+    "pdfplumber>=0.11.4",
+    "python-docx>=1.1.2",
+    "openpyxl>=3.1.5",
+    "pillow>=11.0.0",
+    "reportlab>=4.2.5",
+    "rapidocr-onnxruntime>=1.3.24",
+    
+    # Search, embeddings & NLP (Agent 4)
+    "numpy>=1.26.4,<2.0.0",
+    "rank-bm25>=0.2.2",
+    "sentence-transformers>=3.2.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.3",
+    "pytest-asyncio>=0.24.0",
+    "pyyaml>=6.0.2",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]

@@ -1,0 +1,811 @@
+openapi: 3.1.0
+info:
+  title: Mersin University BAP Advisor - Internal AI Engine API
+  version: 1.0.0
+  description: >
+    Internal REST API exposed by the Python FastAPI service (:8001) to the Spring Boot Core API.
+    Protected by X-Internal-Service-Token header. Handles Hybrid OCR, Table Extraction,
+    Madde-Aware Legal RAG Ingestion & Hybrid Search, Dual-Mode LLM Gateway,
+    Evaluation Draft Generation, and Contextual Q&A.
+
+servers:
+  - url: http://localhost:8001
+    description: Local development internal endpoint
+  - url: http://ai-engine:8001
+    description: Docker network internal endpoint
+
+paths:
+  /internal/v1/health:
+    get:
+      summary: AI Engine Health & Readiness
+      operationId: getHealth
+      security: []
+      responses:
+        '200':
+          description: Service health and environment status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+  /internal/v1/ocr/extract:
+    post:
+      summary: Extract text, tables, and structured data from document package
+      operationId: extractOcrData
+      security:
+        - InternalServiceToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OcrExtractRequest'
+      responses:
+        '200':
+          description: Extracted metadata, classified documents, and parsed markdown/tables
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OcrExtractResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /internal/v1/regulations/ingest:
+    post:
+      summary: Chunk and index regulation document into pgvector with BAAI/bge-m3
+      operationId: ingestRegulationDocument
+      security:
+        - InternalServiceToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegulationIngestRequest'
+      responses:
+        '200':
+          description: Ingestion result summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegulationIngestResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /internal/v1/evaluate:
+    post:
+      summary: Combine deterministic findings with RAG regulation analysis & generate action drafts
+      operationId: evaluateSubmission
+      security:
+        - InternalServiceToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EvaluateRequest'
+      responses:
+        '200':
+          description: Complete RAG findings, combined checklist, and revision/referral drafts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /internal/v1/qa/ask:
+    post:
+      summary: Contextual question answering grounded strictly on regulation articles & submission files
+      operationId: askRegulationQa
+      security:
+        - InternalServiceToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QaRequest'
+      responses:
+        '200':
+          description: Grounded Turkish answer with explicit regulation citations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QaResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /internal/v1/providers/status:
+    get:
+      summary: Query active LLM provider, model, airgap lock status, and embedding configuration
+      operationId: getProviderStatus
+      security:
+        - InternalServiceToken: []
+      responses:
+        '200':
+          description: Current provider configuration and runtime status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderStatusResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /internal/v1/providers/config:
+    put:
+      summary: Update active LLM provider, switch between NanoGPT and Ollama/vLLM, or toggle airgap lock
+      operationId: updateProviderConfig
+      security:
+        - InternalServiceToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProviderConfigRequest'
+      responses:
+        '200':
+          description: Updated provider configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderStatusResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    InternalServiceToken:
+      type: apiKey
+      in: header
+      name: X-Internal-Service-Token
+      description: Shared internal secret token between Spring Boot and FastAPI
+
+  responses:
+    BadRequest:
+      description: Invalid request parameters or malformed payload
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Missing or invalid internal service token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalError:
+      description: Internal server or AI inference error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    HealthStatus:
+      type: object
+      required:
+        - status
+        - version
+        - airgapped_mode
+        - llm_provider
+        - timestamp
+      properties:
+        status:
+          type: string
+          example: "UP"
+        version:
+          type: string
+          example: "1.0.0"
+        airgapped_mode:
+          type: boolean
+          example: false
+        llm_provider:
+          type: string
+          example: "nanogpt"
+        embedding_model:
+          type: string
+          example: "BAAI/bge-m3"
+        timestamp:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          type: string
+          example: "Invalid internal service token"
+        error_code:
+          type: string
+          example: "UNAUTHORIZED"
+
+    SubmissionType:
+      type: string
+      enum:
+        - NEW_PROJECT
+        - OPEN_ACCESS
+        - ADDITIONAL_BUDGET
+        - ADDITIONAL_TIME
+        - PROCUREMENT_ADVANCE
+
+    DocumentRole:
+      type: string
+      enum:
+        - APPLICATION_FORM
+        - BUDGET_TABLE
+        - PROFORMA_INVOICE
+        - TECHNICAL_SPEC
+        - ETHICS_APPROVAL
+        - THESIS_PROPOSAL
+        - SIGNED_PETITION
+        - PUBLICATION_PROOF
+        - OTHER
+
+    BudgetCategory:
+      type: string
+      enum:
+        - CONSUMABLE
+        - EQUIPMENT
+        - SERVICE_PURCHASE
+        - TRAVEL
+        - PUBLICATION
+        - OTHER
+
+    BudgetLineItem:
+      type: object
+      required:
+        - category
+        - name
+        - total_tl
+      properties:
+        category:
+          $ref: '#/components/schemas/BudgetCategory'
+        name:
+          type: string
+        quantity:
+          type: number
+          nullable: true
+        unit:
+          type: string
+          nullable: true
+        unit_price_tl:
+          type: number
+          nullable: true
+        total_tl:
+          type: number
+        vat_included:
+          type: boolean
+          nullable: true
+          default: true
+        days:
+          type: integer
+          nullable: true
+        daily_rate_tl:
+          type: number
+          nullable: true
+        proforma_count:
+          type: integer
+          nullable: true
+        has_technical_spec:
+          type: boolean
+          nullable: true
+
+    StructuredSubmissionData:
+      type: object
+      required:
+        - detected_submission_type
+        - wet_signature_present
+        - budget_line_items
+        - detected_attachments
+      properties:
+        detected_submission_type:
+          $ref: '#/components/schemas/SubmissionType'
+        detected_project_code:
+          type: string
+          nullable: true
+        applicant_name:
+          type: string
+          nullable: true
+        applicant_title:
+          type: string
+          nullable: true
+        department:
+          type: string
+          nullable: true
+        project_title:
+          type: string
+          nullable: true
+        requested_budget_total_tl:
+          type: number
+          nullable: true
+        existing_approved_budget_tl:
+          type: number
+          nullable: true
+        requested_duration_months:
+          type: integer
+          nullable: true
+        existing_duration_months:
+          type: integer
+          nullable: true
+        budget_line_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/BudgetLineItem'
+        journal_quartile:
+          type: string
+          nullable: true
+          enum: [Q1_TOP10, Q1_OTHER, Q2, Q3, Q4, null]
+        wet_signature_present:
+          type: boolean
+        ethics_required_keywords_detected:
+          type: boolean
+          default: false
+        detected_attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentRole'
+        notes:
+          type: string
+          nullable: true
+
+    FileExtractItem:
+      type: object
+      required:
+        - doc_id
+        - storage_path
+        - mime_type
+        - file_name
+      properties:
+        doc_id:
+          type: string
+          format: uuid
+        storage_path:
+          type: string
+        mime_type:
+          type: string
+        file_name:
+          type: string
+
+    OcrExtractRequest:
+      type: object
+      required:
+        - version_id
+        - files
+      properties:
+        version_id:
+          type: string
+          format: uuid
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/FileExtractItem'
+        enable_vision_fallback:
+          type: boolean
+          default: false
+
+    ExtractedDocumentResult:
+      type: object
+      required:
+        - doc_id
+        - file_name
+        - detected_doc_role
+        - ocr_confidence
+        - has_signature_detected
+      properties:
+        doc_id:
+          type: string
+          format: uuid
+        file_name:
+          type: string
+        detected_doc_role:
+          $ref: '#/components/schemas/DocumentRole'
+        ocr_confidence:
+          type: number
+        has_signature_detected:
+          type: boolean
+        parsed_markdown:
+          type: string
+          nullable: true
+        parsed_tables_json:
+          type: array
+          items:
+            type: object
+          nullable: true
+
+    OcrExtractResponse:
+      type: object
+      required:
+        - version_id
+        - documents
+        - structured_data
+      properties:
+        version_id:
+          type: string
+          format: uuid
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExtractedDocumentResult'
+        structured_data:
+          $ref: '#/components/schemas/StructuredSubmissionData'
+
+    RegulationIngestRequest:
+      type: object
+      required:
+        - regulation_doc_id
+        - storage_path
+        - title_tr
+        - doc_type
+      properties:
+        regulation_doc_id:
+          type: string
+          format: uuid
+        storage_path:
+          type: string
+        title_tr:
+          type: string
+        doc_type:
+          type: string
+          enum: [YONETMELIK, YONERGE, KILAVUZ, ESASLAR, REHBER, CETVEL]
+        replace_previous_slug:
+          type: string
+          nullable: true
+        version_label:
+          type: string
+          nullable: true
+
+    RegulationIngestResponse:
+      type: object
+      required:
+        - regulation_doc_id
+        - slug
+        - total_chunks_created
+        - articles_indexed
+        - status
+      properties:
+        regulation_doc_id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        total_chunks_created:
+          type: integer
+        articles_indexed:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          example: "INDEXED"
+
+    FindingSeverity:
+      type: string
+      enum:
+        - COMPLIANT
+        - VIOLATION
+        - MISSING_DOCUMENT
+        - AMBIGUOUS_COMMISSION
+
+    FindingSource:
+      type: string
+      enum:
+        - DETERMINISTIC_RULE
+        - RAG_LLM
+
+    RuleCategory:
+      type: string
+      enum:
+        - BUDGET
+        - DURATION
+        - ELIGIBILITY
+        - DOCUMENTS
+        - PROCUREMENT
+        - OPEN_ACCESS
+        - FORMAL_SIGNATURE
+
+    FindingItem:
+      type: object
+      required:
+        - source_type
+        - rule_code
+        - category
+        - severity
+        - title_tr
+        - explanation_tr
+        - regulation_doc_name
+        - regulation_article_ref
+      properties:
+        id:
+          type: string
+          format: uuid
+          nullable: true
+        source_type:
+          $ref: '#/components/schemas/FindingSource'
+        rule_code:
+          type: string
+        category:
+          $ref: '#/components/schemas/RuleCategory'
+        severity:
+          $ref: '#/components/schemas/FindingSeverity'
+        title_tr:
+          type: string
+        explanation_tr:
+          type: string
+        regulation_doc_name:
+          type: string
+        regulation_article_ref:
+          type: string
+        verbatim_quote:
+          type: string
+          nullable: true
+        expected_value:
+          type: string
+          nullable: true
+        actual_value:
+          type: string
+          nullable: true
+        officer_override_status:
+          type: string
+          nullable: true
+          enum: [APPROVED, REJECTED, WAIVED, null]
+        officer_override_reason:
+          type: string
+          nullable: true
+
+    EvaluationModuleFlags:
+      type: object
+      properties:
+        run_deterministic_rules:
+          type: boolean
+          default: true
+        run_rag_checklist:
+          type: boolean
+          default: true
+        generate_action_drafts:
+          type: boolean
+          default: true
+        llm_provider_override:
+          type: string
+          nullable: true
+          enum: [nanogpt, ollama, vllm, null]
+        llm_model_override:
+          type: string
+          nullable: true
+
+    DocumentMarkdownItem:
+      type: object
+      required:
+        - doc_id
+        - doc_role
+        - markdown
+      properties:
+        doc_id:
+          type: string
+          format: uuid
+        doc_role:
+          $ref: '#/components/schemas/DocumentRole'
+        markdown:
+          type: string
+
+    EvaluateRequest:
+      type: object
+      required:
+        - version_id
+        - submission_type
+        - structured_data
+        - document_markdowns
+        - deterministic_findings
+      properties:
+        version_id:
+          type: string
+          format: uuid
+        submission_type:
+          $ref: '#/components/schemas/SubmissionType'
+        project_code:
+          type: string
+          nullable: true
+        structured_data:
+          $ref: '#/components/schemas/StructuredSubmissionData'
+        document_markdowns:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentMarkdownItem'
+        deterministic_findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/FindingItem'
+        module_flags:
+          $ref: '#/components/schemas/EvaluationModuleFlags'
+
+    OverallComplianceStatus:
+      type: string
+      enum:
+        - COMPLIANT
+        - NEEDS_REVISION
+        - COMMISSION_REVIEW
+        - FORMAL_REJECTION
+
+    EvaluateResponse:
+      type: object
+      required:
+        - evaluation_id
+        - overall_compliance_status
+        - rag_findings
+        - combined_findings
+        - llm_provider_used
+        - llm_model_name
+      properties:
+        evaluation_id:
+          type: string
+          format: uuid
+        overall_compliance_status:
+          $ref: '#/components/schemas/OverallComplianceStatus'
+        rag_findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/FindingItem'
+        combined_findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/FindingItem'
+        revision_draft_tr:
+          type: string
+          nullable: true
+        commission_referral_summary_tr:
+          type: string
+          nullable: true
+        llm_provider_used:
+          type: string
+        llm_model_name:
+          type: string
+
+    ChatMessage:
+      type: object
+      required:
+        - role
+        - content
+      properties:
+        role:
+          type: string
+          enum: [user, assistant, system]
+        content:
+          type: string
+
+    QaRequest:
+      type: object
+      required:
+        - version_id
+        - question
+        - submission_context
+      properties:
+        version_id:
+          type: string
+          format: uuid
+        question:
+          type: string
+        submission_context:
+          $ref: '#/components/schemas/StructuredSubmissionData'
+        chat_history:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+          default: []
+
+    CitationItem:
+      type: object
+      required:
+        - regulation_doc_name
+        - regulation_article_ref
+        - verbatim_quote
+      properties:
+        regulation_doc_name:
+          type: string
+        regulation_article_ref:
+          type: string
+        verbatim_quote:
+          type: string
+        score:
+          type: number
+          nullable: true
+
+    QaResponse:
+      type: object
+      required:
+        - answer_tr
+        - citations
+        - llm_provider_used
+        - llm_model_name
+      properties:
+        answer_tr:
+          type: string
+        citations:
+          type: array
+          items:
+            $ref: '#/components/schemas/CitationItem'
+        llm_provider_used:
+          type: string
+        llm_model_name:
+          type: string
+
+    ProviderStatusResponse:
+      type: object
+      required:
+        - active_provider
+        - active_model
+        - available_providers
+        - airgapped_mode
+        - embedding_model
+        - embedding_dimension
+      properties:
+        active_provider:
+          type: string
+          enum: [nanogpt, ollama, vllm]
+        active_model:
+          type: string
+        available_providers:
+          type: array
+          items:
+            type: string
+        airgapped_mode:
+          type: boolean
+        embedding_model:
+          type: string
+        embedding_dimension:
+          type: integer
+        reranker_model:
+          type: string
+          nullable: true
+
+    ProviderConfigRequest:
+      type: object
+      required:
+        - llm_provider
+      properties:
+        llm_provider:
+          type: string
+          enum: [nanogpt, ollama, vllm]
+        nanogpt_api_key:
+          type: string
+          nullable: true
+        nanogpt_model:
+          type: string
+          nullable: true
+        ollama_base_url:
+          type: string
+          nullable: true
+        ollama_model:
+          type: string
+          nullable: true
+        vllm_base_url:
+          type: string
+          nullable: true
+        vllm_model:
+          type: string
+          nullable: true
+        airgapped_mode:
+          type: boolean
+          nullable: true

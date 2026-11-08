@@ -1,0 +1,1347 @@
+openapi: 3.1.0
+info:
+  title: Mersin University BAP Advisor - Public Core REST API
+  version: 1.0.0
+  description: >
+    Public and Officer REST API for the Mersin University BAP Regulation Compliance and Pre-Review System.
+    Serves the React Web Dashboard (:3000 / :5173) and external bap2 integration.
+    Implements RBAC (ADMIN, COORDINATOR, OFFICER, COMMISSION_VIEWER), submission lifecycle,
+    document management, extraction verification, rule evaluation orchestration, version diff,
+    official report export (PDF/DOCX), regulation/limit management, and analytics.
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development Core API
+  - url: https://bap-advisor.mersin.edu.tr/api/v1
+    description: Production Core API
+
+security:
+  - BearerAuth: []
+
+paths:
+  /auth/login:
+    post:
+      summary: Authenticate user and obtain JWT tokens
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/refresh:
+    post:
+      summary: Refresh expired access token
+      operationId: refreshToken
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: New access token issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/me:
+    get:
+      summary: Get current authenticated user profile
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /users:
+    get:
+      summary: List system users (Admin / Coordinator)
+      operationId: listUsers
+      parameters:
+        - name: role
+          in: query
+          schema:
+            $ref: '#/components/schemas/UserRole'
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Paginated users list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageUserResponse'
+    post:
+      summary: Create new system user (Admin only)
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+
+  /users/{id}:
+    put:
+      summary: Update user details (Admin only)
+      operationId: updateUser
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+
+  /users/{id}/status:
+    patch:
+      summary: Toggle user active state
+      operationId: toggleUserStatus
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [is_active]
+              properties:
+                is_active: { type: boolean }
+      responses:
+        '200':
+          description: User status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+
+  /submissions:
+    get:
+      summary: List submissions with filters
+      operationId: listSubmissions
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/SubmissionStatus'
+        - name: submissionType
+          in: query
+          schema:
+            $ref: '#/components/schemas/SubmissionType'
+        - name: projectCode
+          in: query
+          schema:
+            type: string
+        - name: assignedOfficerId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: search
+          in: query
+          description: Search in reference_no, title, applicant_name
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 15
+      responses:
+        '200':
+          description: Paginated submissions list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageSubmissionResponse'
+
+    post:
+      summary: Create new submission draft
+      operationId: createSubmission
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSubmissionRequest'
+      responses:
+        '201':
+          description: Submission created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubmissionDetailResponse'
+
+  /submissions/{id}:
+    get:
+      summary: Get submission details by ID
+      operationId: getSubmissionById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Submission details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubmissionDetailResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /submissions/{id}/versions:
+    post:
+      summary: Upload document package and initiate new version (v1, v2...)
+      operationId: createSubmissionVersion
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - files
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                officer_notes:
+                  type: string
+                enable_vision_fallback:
+                  type: boolean
+                  default: false
+      responses:
+        '201':
+          description: Version created and OCR job initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubmissionVersionResponse'
+
+  /submissions/{id}/versions/{versionNo}:
+    get:
+      summary: Get details of a specific version including extracted OCR data
+      operationId: getSubmissionVersion
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: versionNo
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Version data and extracted metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubmissionVersionResponse'
+
+  /submissions/{id}/versions/{versionNo}/extracted-data:
+    patch:
+      summary: Review, modify, and confirm extracted structured submission data
+      operationId: updateExtractedData
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: versionNo
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StructuredSubmissionDto'
+      responses:
+        '200':
+          description: Extracted data confirmed and updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubmissionVersionResponse'
+
+  /submissions/{id}/versions/{versionNo}/evaluate:
+    post:
+      summary: Trigger evaluation with selectable modules (Deterministic rules, RAG, Drafts)
+      operationId: evaluateSubmissionVersion
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: versionNo
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EvaluationModuleFlagsDto'
+      responses:
+        '200':
+          description: Evaluation completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluationResultResponse'
+
+  /submissions/{id}/versions/{versionNo}/evaluation:
+    get:
+      summary: Get existing evaluation result for this version
+      operationId: getEvaluationResult
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: versionNo
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Evaluation results and findings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluationResultResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /submissions/{id}/diff:
+    get:
+      summary: Compute revision diff report between two versions (e.g. v1 <-> v2)
+      operationId: getVersionDiff
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: fromVersion
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: toVersion
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detailed diff report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionDiffResponse'
+
+  /submissions/{id}/status:
+    patch:
+      summary: Update submission lifecycle status, record override decisions and notes
+      operationId: updateSubmissionStatus
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatusTransitionRequest'
+      responses:
+        '200':
+          description: Status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubmissionDetailResponse'
+
+  /submissions/{id}/versions/{versionNo}/export:
+    get:
+      summary: Export official pre-review report in PDF or DOCX format
+      operationId: exportAuditReport
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: versionNo
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: format
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [pdf, docx]
+      responses:
+        '200':
+          description: Official formatted document
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            application/vnd.openxmlformats-officedocument.wordprocessingml.document:
+              schema:
+                type: string
+                format: binary
+
+  /submissions/{id}/versions/{versionNo}/qa:
+    post:
+      summary: Submit a contextual question regarding submission and regulations
+      operationId: submitContextualQa
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: versionNo
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [question]
+              properties:
+                question: { type: string }
+      responses:
+        '200':
+          description: Answer with regulation citations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QaAnswerResponse'
+
+  /regulations:
+    get:
+      summary: List all active and archived regulation documents
+      operationId: listRegulations
+      responses:
+        '200':
+          description: List of regulations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RegulationDocumentDto'
+
+  /regulations/upload:
+    post:
+      summary: Upload new regulation document PDF and trigger RAG indexing
+      operationId: uploadRegulation
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+                - title_tr
+                - doc_type
+              properties:
+                file:
+                  type: string
+                  format: binary
+                title_tr:
+                  type: string
+                doc_type:
+                  type: string
+                  enum: [YONETMELIK, YONERGE, KILAVUZ, ESASLAR, REHBER, CETVEL]
+                version_label:
+                  type: string
+                replace_previous_slug:
+                  type: string
+      responses:
+        '201':
+          description: Regulation uploaded and indexed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegulationDocumentDto'
+
+  /regulations/{id}/toggle:
+    patch:
+      summary: Toggle active state of a regulation document
+      operationId: toggleRegulationActive
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [is_active]
+              properties:
+                is_active: { type: boolean }
+      responses:
+        '200':
+          description: Regulation updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegulationDocumentDto'
+
+  /limits:
+    get:
+      summary: Get project and financial limits by fiscal year
+      operationId: getLimits
+      parameters:
+        - name: year
+          in: query
+          schema:
+            type: integer
+            default: 2026
+      responses:
+        '200':
+          description: Limit configurations for requested year
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LimitConfigDto'
+
+  /limits/{id}:
+    put:
+      summary: Update specific limit configuration (Coordinator / Admin)
+      operationId: updateLimit
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateLimitRequest'
+      responses:
+        '200':
+          description: Limit updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LimitConfigDto'
+
+  /limits/clone-year:
+    post:
+      summary: Clone limit definitions from source year to target fiscal year
+      operationId: cloneYearLimits
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [source_year, target_year]
+              properties:
+                source_year: { type: integer }
+                target_year: { type: integer }
+      responses:
+        '201':
+          description: Limits cloned successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LimitConfigDto'
+
+  /analytics/overview:
+    get:
+      summary: Coordinator overview statistics
+      operationId: getAnalyticsOverview
+      responses:
+        '200':
+          description: Aggregated metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsOverviewResponse'
+
+  /admin/providers/status:
+    get:
+      summary: Query internal AI Engine LLM provider and airgap lock status
+      operationId: getAdminProviderStatus
+      responses:
+        '200':
+          description: Provider status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  active_provider: { type: string }
+                  active_model: { type: string }
+                  airgapped_mode: { type: boolean }
+                  available_providers:
+                    type: array
+                    items: { type: string }
+
+  /admin/providers/config:
+    put:
+      summary: Change active LLM provider or toggle airgap lock
+      operationId: updateAdminProviderConfig
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [llm_provider]
+              properties:
+                llm_provider: { type: string, enum: [nanogpt, ollama, vllm] }
+                nanogpt_api_key: { type: string, nullable: true }
+                nanogpt_model: { type: string, nullable: true }
+                ollama_base_url: { type: string, nullable: true }
+                ollama_model: { type: string, nullable: true }
+                vllm_base_url: { type: string, nullable: true }
+                vllm_model: { type: string, nullable: true }
+                airgapped_mode: { type: boolean, nullable: true }
+      responses:
+        '200':
+          description: Provider configuration updated
+
+  /integrations/bap2/import:
+    post:
+      summary: Import submission package from external bap2.mersin.edu.tr system
+      operationId: importBap2Submission
+      security:
+        - Bap2ApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Bap2ImportRequest'
+      responses:
+        '201':
+          description: Imported successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubmissionDetailResponse'
+
+  /integrations/bap2/export/{submissionId}:
+    get:
+      summary: Export structured pre-review evaluation result for bap2 consumption
+      operationId: exportBap2Evaluation
+      security:
+        - Bap2ApiKey: []
+      parameters:
+        - name: submissionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Pre-review audit payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bap2ExportResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    Bap2ApiKey:
+      type: apiKey
+      in: header
+      name: X-BAP2-API-KEY
+
+  responses:
+    Unauthorized:
+      description: Unauthorized or token expired
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorDto'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorDto'
+
+  schemas:
+    ErrorDto:
+      type: object
+      required:
+        - message
+        - error_code
+        - timestamp
+      properties:
+        message: { type: string }
+        error_code: { type: string }
+        timestamp: { type: string, format: date-time }
+        field_errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              message: { type: string }
+
+    UserRole:
+      type: string
+      enum:
+        - ADMIN
+        - COORDINATOR
+        - OFFICER
+        - COMMISSION_VIEWER
+
+    SubmissionType:
+      type: string
+      enum:
+        - NEW_PROJECT
+        - OPEN_ACCESS
+        - ADDITIONAL_BUDGET
+        - ADDITIONAL_TIME
+        - PROCUREMENT_ADVANCE
+
+    SubmissionStatus:
+      type: string
+      enum:
+        - DRAFT
+        - OCR_PROCESSING
+        - OCR_FAILED
+        - EXTRACTION_REVIEW
+        - EVALUATING
+        - OFFICER_REVIEW
+        - REVISION_REQUESTED
+        - COMMISSION_REFERRED
+        - REJECTED_FORMAL
+
+    DocumentRole:
+      type: string
+      enum:
+        - APPLICATION_FORM
+        - BUDGET_TABLE
+        - PROFORMA_INVOICE
+        - TECHNICAL_SPEC
+        - ETHICS_APPROVAL
+        - THESIS_PROPOSAL
+        - SIGNED_PETITION
+        - PUBLICATION_PROOF
+        - OTHER
+
+    BudgetCategory:
+      type: string
+      enum:
+        - CONSUMABLE
+        - EQUIPMENT
+        - SERVICE_PURCHASE
+        - TRAVEL
+        - PUBLICATION
+        - OTHER
+
+    FindingSeverity:
+      type: string
+      enum:
+        - COMPLIANT
+        - VIOLATION
+        - MISSING_DOCUMENT
+        - AMBIGUOUS_COMMISSION
+
+    FindingSource:
+      type: string
+      enum:
+        - DETERMINISTIC_RULE
+        - RAG_LLM
+
+    RuleCategory:
+      type: string
+      enum:
+        - BUDGET
+        - DURATION
+        - ELIGIBILITY
+        - DOCUMENTS
+        - PROCUREMENT
+        - OPEN_ACCESS
+        - FORMAL_SIGNATURE
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+
+    RefreshTokenRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token: { type: string }
+
+    AuthTokenResponse:
+      type: object
+      required: [access_token, token_type, expires_in_seconds]
+      properties:
+        access_token: { type: string }
+        refresh_token: { type: string }
+        token_type: { type: string, example: "Bearer" }
+        expires_in_seconds: { type: integer }
+        user: { $ref: '#/components/schemas/UserProfileResponse' }
+
+    UserProfileResponse:
+      type: object
+      required: [id, email, full_name, role, is_active]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string }
+        full_name: { type: string }
+        role: { $ref: '#/components/schemas/UserRole' }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+
+    CreateUserRequest:
+      type: object
+      required: [email, password, full_name, role]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8 }
+        full_name: { type: string }
+        role: { $ref: '#/components/schemas/UserRole' }
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        full_name: { type: string }
+        role: { $ref: '#/components/schemas/UserRole' }
+        password: { type: string, minLength: 8 }
+
+    PageUserResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserProfileResponse'
+        total_elements: { type: integer }
+        total_pages: { type: integer }
+        number: { type: integer }
+        size: { type: integer }
+
+    BudgetLineItemDto:
+      type: object
+      required: [category, name, total_tl]
+      properties:
+        category: { $ref: '#/components/schemas/BudgetCategory' }
+        name: { type: string }
+        quantity: { type: number, nullable: true }
+        unit: { type: string, nullable: true }
+        unit_price_tl: { type: number, nullable: true }
+        total_tl: { type: number }
+        vat_included: { type: boolean, nullable: true, default: true }
+        days: { type: integer, nullable: true }
+        daily_rate_tl: { type: number, nullable: true }
+        proforma_count: { type: integer, nullable: true }
+        has_technical_spec: { type: boolean, nullable: true }
+
+    StructuredSubmissionDto:
+      type: object
+      required:
+        - detected_submission_type
+        - wet_signature_present
+        - budget_line_items
+        - detected_attachments
+      properties:
+        detected_submission_type: { $ref: '#/components/schemas/SubmissionType' }
+        detected_project_code: { type: string, nullable: true }
+        applicant_name: { type: string, nullable: true }
+        applicant_title: { type: string, nullable: true }
+        department: { type: string, nullable: true }
+        project_title: { type: string, nullable: true }
+        requested_budget_total_tl: { type: number, nullable: true }
+        existing_approved_budget_tl: { type: number, nullable: true }
+        requested_duration_months: { type: integer, nullable: true }
+        existing_duration_months: { type: integer, nullable: true }
+        budget_line_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/BudgetLineItemDto'
+        journal_quartile:
+          type: string
+          nullable: true
+          enum: [Q1_TOP10, Q1_OTHER, Q2, Q3, Q4, null]
+        wet_signature_present: { type: boolean }
+        ethics_required_keywords_detected: { type: boolean, default: false }
+        detected_attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentRole'
+        notes: { type: string, nullable: true }
+
+    EvaluationModuleFlagsDto:
+      type: object
+      properties:
+        run_deterministic_rules: { type: boolean, default: true }
+        run_rag_checklist: { type: boolean, default: true }
+        generate_action_drafts: { type: boolean, default: true }
+        llm_provider_override: { type: string, nullable: true }
+        llm_model_override: { type: string, nullable: true }
+
+    FindingDto:
+      type: object
+      required:
+        - source_type
+        - rule_code
+        - category
+        - severity
+        - title_tr
+        - explanation_tr
+        - regulation_doc_name
+        - regulation_article_ref
+      properties:
+        id: { type: string, format: uuid, nullable: true }
+        source_type: { $ref: '#/components/schemas/FindingSource' }
+        rule_code: { type: string }
+        category: { $ref: '#/components/schemas/RuleCategory' }
+        severity: { $ref: '#/components/schemas/FindingSeverity' }
+        title_tr: { type: string }
+        explanation_tr: { type: string }
+        regulation_doc_name: { type: string }
+        regulation_article_ref: { type: string }
+        verbatim_quote: { type: string, nullable: true }
+        expected_value: { type: string, nullable: true }
+        actual_value: { type: string, nullable: true }
+        officer_override_status: { type: string, nullable: true }
+        officer_override_reason: { type: string, nullable: true }
+
+    SubmissionDocumentDto:
+      type: object
+      required: [id, file_name, mime_type, file_size_bytes, doc_role]
+      properties:
+        id: { type: string, format: uuid }
+        file_name: { type: string }
+        mime_type: { type: string }
+        file_size_bytes: { type: integer }
+        doc_role: { $ref: '#/components/schemas/DocumentRole' }
+        ocr_confidence: { type: number, nullable: true }
+        has_signature_detected: { type: boolean, nullable: true }
+        storage_path: { type: string }
+
+    SubmissionVersionResponse:
+      type: object
+      required: [id, submission_id, version_no, submitted_at, documents]
+      properties:
+        id: { type: string, format: uuid }
+        submission_id: { type: string, format: uuid }
+        version_no: { type: integer }
+        extracted_metadata: { $ref: '#/components/schemas/StructuredSubmissionDto' }
+        selected_modules: { $ref: '#/components/schemas/EvaluationModuleFlagsDto' }
+        officer_notes: { type: string, nullable: true }
+        submitted_at: { type: string, format: date-time }
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubmissionDocumentDto'
+
+    CreateSubmissionRequest:
+      type: object
+      required: [submission_type, title, applicant_name]
+      properties:
+        submission_type: { $ref: '#/components/schemas/SubmissionType' }
+        project_code: { type: string, nullable: true }
+        title: { type: string }
+        applicant_name: { type: string }
+        applicant_title: { type: string, nullable: true }
+        department: { type: string, nullable: true }
+        external_bap2_id: { type: string, nullable: true }
+
+    SubmissionDetailResponse:
+      type: object
+      required:
+        - id
+        - reference_no
+        - submission_type
+        - title
+        - applicant_name
+        - status
+        - current_version_no
+        - created_at
+      properties:
+        id: { type: string, format: uuid }
+        reference_no: { type: string }
+        external_bap2_id: { type: string, nullable: true }
+        submission_type: { $ref: '#/components/schemas/SubmissionType' }
+        project_code: { type: string, nullable: true }
+        title: { type: string }
+        applicant_name: { type: string }
+        applicant_title: { type: string, nullable: true }
+        department: { type: string, nullable: true }
+        current_version_no: { type: integer }
+        status: { $ref: '#/components/schemas/SubmissionStatus' }
+        assigned_officer_id: { type: string, format: uuid, nullable: true }
+        assigned_officer_name: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        latest_version: { $ref: '#/components/schemas/SubmissionVersionResponse' }
+
+    PageSubmissionResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubmissionDetailResponse'
+        total_elements: { type: integer }
+        total_pages: { type: integer }
+        number: { type: integer }
+        size: { type: integer }
+
+    EvaluationResultResponse:
+      type: object
+      required:
+        - id
+        - version_id
+        - overall_compliance_status
+        - findings
+        - started_at
+        - completed_at
+      properties:
+        id: { type: string, format: uuid }
+        version_id: { type: string, format: uuid }
+        llm_provider_used: { type: string }
+        llm_model_name: { type: string }
+        overall_compliance_status: { type: string }
+        revision_draft_tr: { type: string, nullable: true }
+        commission_referral_summary_tr: { type: string, nullable: true }
+        findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/FindingDto'
+        started_at: { type: string, format: date-time }
+        completed_at: { type: string, format: date-time }
+
+    VersionDiffResponse:
+      type: object
+      required:
+        - from_version
+        - to_version
+        - budget_diff_tl
+        - duration_diff_months
+        - budget_items_added
+        - budget_items_removed
+        - budget_items_modified
+        - resolved_findings
+        - new_findings
+        - unresolved_findings
+        - documents_added
+        - documents_removed
+        - summary_tr
+      properties:
+        from_version: { type: integer }
+        to_version: { type: integer }
+        budget_diff_tl: { type: number }
+        duration_diff_months: { type: integer }
+        budget_items_added:
+          type: array
+          items:
+            $ref: '#/components/schemas/BudgetLineItemDto'
+        budget_items_removed:
+          type: array
+          items:
+            $ref: '#/components/schemas/BudgetLineItemDto'
+        budget_items_modified:
+          type: array
+          items:
+            type: object
+        resolved_findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/FindingDto'
+        new_findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/FindingDto'
+        unresolved_findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/FindingDto'
+        documents_added:
+          type: array
+          items:
+            { type: string }
+        documents_removed:
+          type: array
+          items:
+            { type: string }
+        summary_tr: { type: string }
+
+    FindingOverrideItem:
+      type: object
+      required: [finding_id, override_status, override_reason]
+      properties:
+        finding_id: { type: string, format: uuid }
+        override_status: { type: string, enum: [APPROVED, REJECTED, WAIVED] }
+        override_reason: { type: string }
+
+    StatusTransitionRequest:
+      type: object
+      required: [target_status]
+      properties:
+        target_status: { $ref: '#/components/schemas/SubmissionStatus' }
+        officer_notes: { type: string, nullable: true }
+        finding_overrides:
+          type: array
+          items:
+            $ref: '#/components/schemas/FindingOverrideItem'
+
+    QaAnswerResponse:
+      type: object
+      required: [answer_tr, citations]
+      properties:
+        answer_tr: { type: string }
+        citations:
+          type: array
+          items:
+            type: object
+            required: [regulation_doc_name, regulation_article_ref, verbatim_quote]
+            properties:
+              regulation_doc_name: { type: string }
+              regulation_article_ref: { type: string }
+              verbatim_quote: { type: string }
+              score: { type: number, nullable: true }
+        llm_provider_used: { type: string }
+
+    RegulationDocumentDto:
+      type: object
+      required: [id, slug, title_tr, doc_type, is_active]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title_tr: { type: string }
+        doc_type: { type: string }
+        version_label: { type: string, nullable: true }
+        source_url: { type: string, nullable: true }
+        is_active: { type: boolean }
+        ingested_at: { type: string, format: date-time, nullable: true }
+
+    LimitConfigDto:
+      type: object
+      required: [id, fiscal_year, rule_category, code, title_tr, max_amount_tl, is_active]
+      properties:
+        id: { type: string, format: uuid }
+        fiscal_year: { type: integer }
+        rule_category: { $ref: '#/components/schemas/RuleCategory' }
+        code: { type: string }
+        title_tr: { type: string }
+        max_amount_tl: { type: number }
+        max_duration_months: { type: integer, nullable: true }
+        currency: { type: string, default: "TRY" }
+        vat_included: { type: boolean, default: true }
+        conditions_json: { type: object, nullable: true }
+        effective_from: { type: string, format: date }
+        is_active: { type: boolean }
+
+    UpdateLimitRequest:
+      type: object
+      properties:
+        title_tr: { type: string }
+        max_amount_tl: { type: number }
+        max_duration_months: { type: integer, nullable: true }
+        vat_included: { type: boolean }
+        conditions_json: { type: object }
+        is_active: { type: boolean }
+
+    AnalyticsOverviewResponse:
+      type: object
+      required:
+        - total_submissions_count
+        - status_breakdown
+        - submission_type_breakdown
+        - top_violated_articles
+        - average_review_hours
+      properties:
+        total_submissions_count: { type: integer }
+        status_breakdown:
+          type: object
+          additionalProperties: { type: integer }
+        submission_type_breakdown:
+          type: object
+          additionalProperties: { type: integer }
+        top_violated_articles:
+          type: array
+          items:
+            type: object
+            properties:
+              article_ref: { type: string }
+              doc_name: { type: string }
+              violation_count: { type: integer }
+        average_review_hours: { type: number }
+
+    Bap2ImportRequest:
+      type: object
+      required:
+        - external_bap2_id
+        - submission_type
+        - title
+        - applicant_name
+        - structured_data
+      properties:
+        external_bap2_id: { type: string }
+        submission_type: { $ref: '#/components/schemas/SubmissionType' }
+        project_code: { type: string, nullable: true }
+        title: { type: string }
+        applicant_name: { type: string }
+        applicant_title: { type: string, nullable: true }
+        department: { type: string, nullable: true }
+        structured_data: { $ref: '#/components/schemas/StructuredSubmissionDto' }
+        file_urls:
+          type: array
+          items:
+            type: object
+            properties:
+              url: { type: string }
+              file_name: { type: string }
+              doc_role: { $ref: '#/components/schemas/DocumentRole' }
+
+    Bap2ExportResponse:
+      type: object
+      required:
+        - submission_id
+        - reference_no
+        - status
+        - overall_compliance_status
+        - findings
+      properties:
+        submission_id: { type: string, format: uuid }
+        reference_no: { type: string }
+        external_bap2_id: { type: string, nullable: true }
+        status: { $ref: '#/components/schemas/SubmissionStatus' }
+        overall_compliance_status: { type: string }
+        revision_draft_tr: { type: string, nullable: true }
+        commission_referral_summary_tr: { type: string, nullable: true }
+        findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/FindingDto'

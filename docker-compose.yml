@@ -1,0 +1,93 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: bap-advisor-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-bap_advisor}
+      POSTGRES_USER: ${POSTGRES_USER:-bap_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bap_password_change_me}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init-db.sql:/docker-entrypoint-initdb.d/01-init-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bap_user} -d ${POSTGRES_DB:-bap_advisor}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  core-api:
+    build:
+      context: ./services/core-api
+      dockerfile: Dockerfile
+    container_name: bap-advisor-core-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-bap_advisor}?currentSchema=core
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-bap_user}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-bap_password_change_me}
+      SERVER_PORT: 8080
+      JWT_SECRET: ${JWT_SECRET:-super_secret_jwt_signing_key_at_least_256_bits_long_for_hmac_sha256_mersin_bap}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-bap_internal_service_secure_token_secret_key_meu_2026}
+      AI_ENGINE_BASE_URL: http://ai-engine:8001
+      STORAGE_DIR: /app/data/uploads
+      REGULATIONS_DIR: /app/data/regulations
+    ports:
+      - "8080:8080"
+    volumes:
+      - app_uploads:/app/data/uploads
+      - app_regulations:/app/data/regulations
+
+  ai-engine:
+    build:
+      context: ./services/ai-engine
+      dockerfile: Dockerfile
+    container_name: bap-advisor-ai-engine
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-bap_user}:${POSTGRES_PASSWORD:-bap_password_change_me}@postgres:5432/${POSTGRES_DB:-bap_advisor}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-bap_internal_service_secure_token_secret_key_meu_2026}
+      AI_ENGINE_PORT: 8001
+      AI_ENGINE_HOST: 0.0.0.0
+      LLM_PROVIDER: ${LLM_PROVIDER:-nanogpt}
+      NANOGPT_BASE_URL: ${NANOGPT_BASE_URL:-https://api.nano-gpt.com/api/v1}
+      NANOGPT_API_KEY: ${NANOGPT_API_KEY:-}
+      NANOGPT_MODEL: ${NANOGPT_MODEL:-openai/gpt-4.1}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:14b-instruct}
+      VLLM_BASE_URL: ${VLLM_BASE_URL:-http://host.docker.internal:8000/v1}
+      VLLM_MODEL: ${VLLM_MODEL:-qwen2.5:14b-instruct}
+      AIRGAPPED_MODE: ${AIRGAPPED_MODE:-false}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-m3}
+      STORAGE_DIR: /app/data/uploads
+      REGULATIONS_DIR: /app/data/regulations
+    ports:
+      - "8001:8001"
+    volumes:
+      - app_uploads:/app/data/uploads
+      - app_regulations:/app/data/regulations
+
+  web-dashboard:
+    build:
+      context: ./apps/web-dashboard
+      dockerfile: Dockerfile
+    container_name: bap-advisor-web-dashboard
+    restart: unless-stopped
+    depends_on:
+      - core-api
+    ports:
+      - "3000:80"
+
+volumes:
+  postgres_data:
+  app_uploads:
+  app_regulations:

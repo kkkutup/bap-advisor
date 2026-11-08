@@ -1,0 +1,24 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+  flyway:
+    enabled: false
+
+app:
+  jwt:
+    secret: super_secret_jwt_signing_key_at_least_256_bits_long_for_hmac_sha256_mersin_bap
+    expiration-hours: 24
+  security:
+    internal-service-token: bap_internal_service_secure_token_secret_key_meu_2026
+  storage:
+    upload-dir: ./target/test-uploads
+    regulations-dir: ./target/test-regulations
+  ai-engine:
+    base-url: http://localhost:8001

@@ -1,0 +1,214 @@
+{
+  "fiscal_year": 2026,
+  "currency": "TRY",
+  "effective_from": "2026-01-01",
+  "project_limits": [
+    {
+      "code": "TP1",
+      "rule_category": "PROJECT_BUDGET",
+      "title_tr": "Lisans Öğrencisi Araştırma Projesi",
+      "max_amount_tl": 30000.00,
+      "max_duration_months": 12,
+      "vat_included": true,
+      "requires_thesis_approval": false,
+      "conditions": {
+        "target_applicant": "UNDERGRADUATE_STUDENT_ADVISOR",
+        "description": "Lisans öğrencisi araştırma projesi üst limiti 30.000 TL'dir."
+      }
+    },
+    {
+      "code": "TP2",
+      "rule_category": "PROJECT_BUDGET",
+      "title_tr": "Yüksek Lisans Tez Projeleri",
+      "max_amount_tl": 125000.00,
+      "max_duration_months": 24,
+      "vat_included": true,
+      "requires_thesis_approval": true,
+      "conditions": {
+        "target_applicant": "MASTER_STUDENT_ADVISOR",
+        "description": "Enstitü tez önerisi kabul belgesi ve tez jürisi kararı zorunludur."
+      }
+    },
+    {
+      "code": "TP3",
+      "rule_category": "PROJECT_BUDGET",
+      "title_tr": "Doktora / Tıpta-Diş-Eczacılık-Veteriner Uzmanlık / Sanatta Yeterlik",
+      "max_amount_tl": 210000.00,
+      "max_duration_months": 36,
+      "vat_included": true,
+      "requires_thesis_approval": true,
+      "conditions": {
+        "target_applicant": "DOCTORATE_STUDENT_ADVISOR",
+        "description": "Enstitü tez konusu kabul kararı ve tez izleme komitesi onayı zorunludur."
+      }
+    },
+    {
+      "code": "AP1",
+      "rule_category": "PROJECT_BUDGET",
+      "title_tr": "Kariyer Başlangıç Araştırma Projeleri",
+      "max_amount_tl": 250000.00,
+      "max_duration_months": 24,
+      "vat_included": true,
+      "requires_thesis_approval": false,
+      "conditions": {
+        "target_applicant": "EARLY_CAREER_RESEARCHER",
+        "description": "Doktorasını veya eşdeğer uzmanlığını son 5 yıl içinde almış araştırmacılar başvurabilir. Daha önce AP1 yürütücülüğü yapılmamış olmalıdır."
+      }
+    },
+    {
+      "code": "AP2",
+      "rule_category": "PROJECT_BUDGET",
+      "title_tr": "Bireysel Araştırma Projeleri",
+      "max_amount_tl": 300000.00,
+      "max_duration_months": 36,
+      "vat_included": true,
+      "requires_thesis_approval": false,
+      "conditions": {
+        "target_applicant": "FACULTY_MEMBER",
+        "description": "Mersin Üniversitesi öğretim üyeleri başvurabilir. Azami süre ek süreler dâhil 36 ayı geçemez."
+      }
+    },
+    {
+      "code": "AP3",
+      "rule_category": "PROJECT_BUDGET",
+      "title_tr": "Öncelikli Alan Araştırma Projeleri",
+      "max_amount_tl": 500000.00,
+      "max_duration_months": 36,
+      "vat_included": true,
+      "requires_thesis_approval": false,
+      "conditions": {
+        "target_applicant": "FACULTY_MEMBER",
+        "description": "YÖK/Üniversite Senatosu tarafından belirlenen öncelikli araştırma alanları ile uyumlu olmalıdır."
+      }
+    },
+    {
+      "code": "AP4",
+      "rule_category": "PROJECT_BUDGET",
+      "title_tr": "Kapsamlı Araştırma Projeleri",
+      "max_amount_tl": 800000.00,
+      "max_duration_months": 36,
+      "vat_included": true,
+      "requires_thesis_approval": false,
+      "conditions": {
+        "target_applicant": "FACULTY_MEMBER",
+        "description": "Disiplinlerarası nitelikte, üniversite araştırma altyapısını geliştirmeye yönelik kapsamlı projelerdir."
+      }
+    },
+    {
+      "code": "AP7",
+      "rule_category": "PROJECT_BUDGET",
+      "title_tr": "Hızlı Destek Araştırma Projeleri",
+      "max_amount_tl": 100000.00,
+      "max_duration_months": 12,
+      "vat_included": true,
+      "requires_thesis_approval": false,
+      "conditions": {
+        "target_applicant": "FACULTY_MEMBER",
+        "description": "Acil veri toplama veya kısa süreli araştırma faaliyetleri için hızlı değerlendirilen desteklerdir."
+      }
+    },
+    {
+      "code": "AP9",
+      "rule_category": "PROJECT_BUDGET",
+      "title_tr": "Ulusal / Uluslararası Yarışmalara Katılım",
+      "max_amount_tl": 5000.00,
+      "max_duration_months": 6,
+      "vat_included": true,
+      "requires_thesis_approval": false,
+      "conditions": {
+        "target_applicant": "STUDENT_AND_ADVISOR",
+        "description": "TEKNOFEST ve benzeri yarışmalara kabul veya katılım belgesi ibrazı zorunludur."
+      }
+    }
+  ],
+  "open_access_limits": [
+    {
+      "code": "WOS_Q1_TOP10",
+      "rule_category": "OPEN_ACCESS",
+      "title_tr": "WoS Q1 (%10'luk Dilim) Araştırma Makalesi Açık Erişim Desteği",
+      "max_amount_tl": 120000.00,
+      "vat_included": true,
+      "conditions": {
+        "journal_tier": "Q1_TOP10",
+        "article_type": "RESEARCH_ARTICLE",
+        "meu_affiliation_required": true,
+        "description": "Dergi etki faktörü sıralamasında en üst %10'luk dilimde yer alan Q1 dergiler için tavan 120.000 TL (KDV dâhil)."
+      }
+    },
+    {
+      "code": "WOS_Q1_OTHER",
+      "rule_category": "OPEN_ACCESS",
+      "title_tr": "WoS Q1 (Diğer) Araştırma Makalesi Açık Erişim Desteği",
+      "max_amount_tl": 80000.00,
+      "vat_included": true,
+      "conditions": {
+        "journal_tier": "Q1_OTHER",
+        "article_type": "RESEARCH_ARTICLE",
+        "meu_affiliation_required": true,
+        "description": "WoS Q1 kategorisindeki diğer dergiler için tavan 80.000 TL (KDV dâhil)."
+      }
+    },
+    {
+      "code": "WOS_Q2",
+      "rule_category": "OPEN_ACCESS",
+      "title_tr": "WoS Q2 Araştırma Makalesi Açık Erişim Desteği",
+      "max_amount_tl": 60000.00,
+      "vat_included": true,
+      "conditions": {
+        "journal_tier": "Q2",
+        "article_type": "RESEARCH_ARTICLE",
+        "meu_affiliation_required": true,
+        "description": "WoS Q2 dergiler için tavan 60.000 TL (KDV dâhil). Q3 ve Q4 dergiler destek kapsamı dışındadır."
+      }
+    }
+  ],
+  "duration_rules": {
+    "MAX_DURATION_NON_THESIS_MONTHS": 36,
+    "MAX_DURATION_THESIS_MASTER_MONTHS": 24,
+    "MAX_DURATION_THESIS_DOCTORATE_MONTHS": 36,
+    "MAX_EXTENSION_PERCENT": 50,
+    "description": "Ek süreler dâhil olmak üzere tez projeleri hariç proje süresi en fazla 36 aydır. Ek süre orijinal proje süresinin %50'sini aşamaz."
+  },
+  "per_diem_limits_2026_h_cetveli": {
+    "currency": "TRY",
+    "daily_allowances": [
+      {
+        "tier": "PROFESSOR_ADDITIONAL_INDICATOR_8000_PLUS",
+        "title_tr": "Ek Göstergesi 8000 ve Üzeri Olanlar (Prof. Dr.)",
+        "daily_rate_tl": 750.00,
+        "max_lodging_rate_tl": 1125.00
+      },
+      {
+        "tier": "ASSOCIATE_PROFESSOR_5800_TO_8000",
+        "title_tr": "Ek Göstergesi 5800 - 8000 Arası Olanlar (Doç. Dr.)",
+        "daily_rate_tl": 680.00,
+        "max_lodging_rate_tl": 1020.00
+      },
+      {
+        "tier": "ASSISTANT_PROFESSOR_3000_TO_5800",
+        "title_tr": "Ek Göstergesi 3000 - 5800 Arası Olanlar (Dr. Öğr. Üyesi)",
+        "daily_rate_tl": 620.00,
+        "max_lodging_rate_tl": 930.00
+      },
+      {
+        "tier": "INSTRUCTOR_RESEARCH_ASSISTANT_GRADE_1_4",
+        "title_tr": "Aylık/Kadro Derecesi 1-4 Olanlar (Öğr. Gör., Arş. Gör.)",
+        "daily_rate_tl": 540.00,
+        "max_lodging_rate_tl": 810.00
+      },
+      {
+        "tier": "OTHER_PERSONNEL_STUDENT_GRADE_5_15",
+        "title_tr": "Aylık/Kadro Derecesi 5-15 Olanlar ve Öğrenciler/Bursiyerler",
+        "daily_rate_tl": 500.00,
+        "max_lodging_rate_tl": 750.00
+      }
+    ]
+  },
+  "procurement_rules": {
+    "direct_purchase_threshold_tl": 620000.00,
+    "technical_spec_required_threshold_tl": 50000.00,
+    "proforma_invoice_min_count": 3,
+    "proforma_invoice_threshold_tl": 25000.00,
+    "description": "4734 sayılı Kamu İhale Kanunu 22/d doğrudan temin limitleri ve MEÜ BAP Satın Alma ve İhale Yönergesi kuralları."
+  }
+}

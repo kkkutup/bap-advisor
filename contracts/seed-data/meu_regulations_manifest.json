@@ -1,0 +1,121 @@
+{
+  "version": "2026.1",
+  "generated_at": "2026-11-08T00:00:00Z",
+  "target_directory": "data/regulations",
+  "seed_fallback_file": "contracts/seed-data/meu_uygulama_esaslari_seed.md",
+  "documents": [
+    {
+      "slug": "yok-bap-yonetmeligi",
+      "file_name": "Yuksekoretim_Kurumlar_Bilimsel_Aratrma_Projeleri_Hakknda_Yonetmelik.pdf",
+      "title_tr": "Yükseköğretim Kurumları Bilimsel Araştırma Projeleri Hakkında Yönetmelik",
+      "doc_type": "YONETMELIK",
+      "version_label": "2016-Resmi-Gazete-Guncel",
+      "url": "https://www.mevzuat.gov.tr/File/GeneratePdf?mevzuatNo=22998&mevzuatTur=KurumVeKurulusYonetmeligi&mevzuatTertip=5",
+      "alternative_urls": [
+        "https://bap.mersin.edu.tr/Yuksekoretim_Kurumlar_Bilimsel_Aratrma_Projeleri_Hakknda_Yonetmelik.pdf"
+      ],
+      "ocr_required": false,
+      "priority": 1,
+      "description": "Yükseköğretim Kurulu (YÖK) tarafından yayımlanan temel BAP çerçeve mevzuatı."
+    },
+    {
+      "slug": "meu-bap-yonergesi-2025",
+      "file_name": "23.01.2025_Tarihli_MEU_BAP_Yonergesi.pdf",
+      "title_tr": "23.01.2025 Tarihli Mersin Üniversitesi BAP Yönergesi",
+      "doc_type": "YONERGE",
+      "version_label": "23.01.2025",
+      "url": "https://bap.mersin.edu.tr/23.01.2025_Tarihli_MEU_BAP_Yonergesi.pdf",
+      "alternative_urls": [
+        "https://mersin.edu.tr/bap/23.01.2025_Tarihli_MEU_BAP_Yonergesi.pdf"
+      ],
+      "ocr_required": true,
+      "priority": 2,
+      "description": "Mersin Üniversitesi Senatosu tarafından kabul edilen güncel BAP temel yönergesi (5.5 MB taranmış metin)."
+    },
+    {
+      "slug": "meu-bap-uygulama-esaslari-2025",
+      "file_name": "18.02.2025_tarihli_Mersin_Universitesi_BAP_Uygulama_Esaslar_Deiiklik_19.06.2026.pdf",
+      "title_tr": "18.02.2025 Tarihli Mersin Üniversitesi BAP Uygulama Usul ve Esasları",
+      "doc_type": "ESASLAR",
+      "version_label": "18.02.2025 (Değişiklik: 19.06.2026)",
+      "url": "https://bap.mersin.edu.tr/18.02.2025_tarihli_Mersin_Universitesi_BAP_Uygulama_Esaslar_Deiiklik_19.06.2026.pdf",
+      "alternative_urls": [
+        "https://bap.mersin.edu.tr/meu_bap_uygulama_esaslari.pdf"
+      ],
+      "fallback_seed_path": "contracts/seed-data/meu_uygulama_esaslari_seed.md",
+      "ocr_required": true,
+      "priority": 3,
+      "description": "Proje türleri (TP1-AP9), bütçe harcama kalemleri, ek bütçe ve ek süre detay kurallarını belirleyen usul ve esaslar. CDN linki 404 döndüğünde yerel seed markdown kullanılır."
+    },
+    {
+      "slug": "meu-acik-erisim-esaslari",
+      "file_name": "Ack_Eriim_Open_Access_Yayn_Basm_Ucreti_Destei_Uygulama_Usul_ve_Esaslar.pdf",
+      "title_tr": "Açık Erişim (Open Access) Yayın Basım Ücreti Desteği Uygulama Usul ve Esasları",
+      "doc_type": "ESASLAR",
+      "version_label": "2025-2026",
+      "url": "https://bap.mersin.edu.tr/Ack_Eriim_Open_Access_Yayn_Basm_Ucreti_Destei_Uygulama_Usul_ve_Esaslar.pdf",
+      "alternative_urls": [
+        "https://mersin.edu.tr/bap/Ack_Eriim_Open_Access_Yayn_Basm_Ucreti_Destei_Uygulama_Usul_ve_Esaslar.pdf"
+      ],
+      "ocr_required": false,
+      "priority": 4,
+      "description": "WoS Q1 ve Q2 dergilerde açık erişim makale yayın basım ücreti destek kuralları."
+    },
+    {
+      "slug": "meu-satinalma-ve-ihale-yonetmeligi",
+      "file_name": "Satn_Alma_ve_hale_Yonetmelii.pdf",
+      "title_tr": "Mersin Üniversitesi BAP Satın Alma ve İhale Yönetmeliği / Uygulama Usulü",
+      "doc_type": "YONETMELIK",
+      "version_label": "2024-Guncel",
+      "url": "https://bap.mersin.edu.tr/Satn_Alma_ve_hale_Yonetmelii.pdf",
+      "alternative_urls": [
+        "https://mersin.edu.tr/bap/Satn_Alma_ve_hale_Yonetmelii.pdf"
+      ],
+      "ocr_required": true,
+      "priority": 5,
+      "description": "BAP projeleri kapsamında doğrudan temin, proforma fatura, teknik şartname ve avans açma/kapatma kuralları."
+    },
+    {
+      "slug": "cumhurbaskanligi-butce-rehberi-2026-2028",
+      "file_name": "2026-2028_ButceHazirlamaRehberi.pdf",
+      "title_tr": "2026-2028 Dönemi Bütçe Hazırlama Rehberi",
+      "doc_type": "REHBER",
+      "version_label": "2026-2028",
+      "url": "https://www.sbb.gov.tr/wp-content/uploads/2025/10/2026-2028_ButceHazirlamaRehberi.pdf",
+      "alternative_urls": [
+        "https://bap.mersin.edu.tr/2026-2028_ButceHazirlamaRehberi.pdf"
+      ],
+      "ocr_required": false,
+      "priority": 6,
+      "description": "T.C. Cumhurbaşkanlığı Strateji ve Bütçe Başkanlığı Analitik Bütçe Sınıflandırması kuralları."
+    },
+    {
+      "slug": "h-cetveli-2026",
+      "file_name": "8-H-Cetveli_2026Butcesi.pdf",
+      "title_tr": "2026 Yılı Merkezi Yönetim Bütçe Kanunu H Cetveli (Yurtiçi Gündelik)",
+      "doc_type": "CETVEL",
+      "version_label": "2026",
+      "url": "https://bap.mersin.edu.tr/8-H-Cetveli_2026Butcesi.pdf",
+      "alternative_urls": [
+        "https://www.sbb.gov.tr/wp-content/uploads/2025/12/8-H-Cetveli_2026Butcesi.pdf"
+      ],
+      "ocr_required": false,
+      "priority": 7,
+      "description": "2026 yılı 6245 sayılı Harcırah Kanunu uyarınca verilecek yurtiçi gündelik ve konaklama tutarları."
+    },
+    {
+      "slug": "resmi-gazete-yurtdisi-gundelik-2026",
+      "file_name": "20260131-1.pdf",
+      "title_tr": "2026 Yılı Yurtdışı Gündeliklerinin Hesaplanmasına İlişkin Karar",
+      "doc_type": "CETVEL",
+      "version_label": "2026-01-31",
+      "url": "https://www.resmigazete.gov.tr/eskiler/2026/01/20260131-1.pdf",
+      "alternative_urls": [
+        "https://bap.mersin.edu.tr/20260131-1.pdf"
+      ],
+      "ocr_required": false,
+      "priority": 8,
+      "description": "Kuzey Kıbrıs Türk Cumhuriyeti ve yabancı ülkelere yapılacak görev seyahatlerinde ödenecek harcırah esasları."
+    }
+  ]
+}
