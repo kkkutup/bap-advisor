@@ -1,0 +1,83 @@
+{
+  "bundles": {
+    "01_tp2_over_budget_v1": {
+      "submission_type": "NEW_PROJECT",
+      "project_code": "TP2",
+      "applicant_name": "Ahmet Yılmaz",
+      "applicant_title": "Doç. Dr.",
+      "department": "Kimya Bölümü",
+      "requested_budget_total_tl": 142000.0,
+      "cap_limit_tl": 125000.0,
+      "requested_duration_months": 24,
+      "wet_signature_present": true,
+      "expected_violations": [
+        "RULE_BUDGET_CAP (142.000 TL > 125.000 TL tavanı)",
+        "RULE_REQUIRED_ATTACHMENTS (Eksik Belge: THESIS_PROPOSAL Enstitü Tez Öneri Kararı)"
+      ]
+    },
+    "02_tp2_compliant_v2": {
+      "submission_type": "NEW_PROJECT",
+      "project_code": "TP2",
+      "applicant_name": "Ahmet Yılmaz",
+      "requested_budget_total_tl": 118500.0,
+      "cap_limit_tl": 125000.0,
+      "requested_duration_months": 24,
+      "wet_signature_present": true,
+      "attachments": [
+        "APPLICATION_FORM",
+        "BUDGET_TABLE",
+        "THESIS_PROPOSAL",
+        "PROFORMA_INVOICE"
+      ],
+      "expected_compliance": "COMPLIANT (Bütçe tavanı içinde, tüm ek belgeler mevcut ve imzalı)"
+    },
+    "03_ap2_ethics_and_duration_violation": {
+      "submission_type": "NEW_PROJECT",
+      "project_code": "AP2",
+      "applicant_name": "Mehmet Kaya",
+      "applicant_title": "Prof. Dr.",
+      "requested_budget_total_tl": 285000.0,
+      "requested_duration_months": 42,
+      "expected_violations": [
+        "RULE_DURATION_MAX_36M (42 Ay talep edildi > 36 Ay azami süre)",
+        "RULE_REQUIRED_ATTACHMENTS (Eksik Belge: ETHICS_APPROVAL Hasta anketi ve kan örneği için etik kurul belgesi zorunludur)",
+        "RULE_PER_DIEM_HCETVELI (Günlük 2.800 TL gündelik 2026 H Cetveli tavanını aşmaktadır)"
+      ]
+    },
+    "04_open_access_wos_q1_valid": {
+      "submission_type": "OPEN_ACCESS",
+      "journal_quartile": "Q1_TOP10",
+      "applicant_name": "Ayşe Demir",
+      "applicant_title": "Prof. Dr.",
+      "requested_budget_total_tl": 110000.0,
+      "cap_limit_tl": 120000.0,
+      "wet_signature_present": true,
+      "expected_compliance": "COMPLIANT (WoS Q1 %10 tavanı 120.000 TL içinde, tüm kanıtlar mevcut)"
+    },
+    "05_ek_sure_scanned_unsigned": {
+      "submission_type": "ADDITIONAL_TIME",
+      "project_code": "AP2",
+      "applicant_name": "Serkan Çelik",
+      "existing_duration_months": 24,
+      "requested_duration_months": 18,
+      "total_duration_months": 42,
+      "is_scanned": true,
+      "wet_signature_present": false,
+      "expected_violations": [
+        "RULE_DURATION_MAX_36M (24 + 18 = 42 Ay > 36 Ay azami süre)",
+        "RULE_WET_SIGNATURE (Islak imza kutusu taranmış formda boş bırakılmıştır)"
+      ]
+    },
+    "05b_ek_sure_scanned_signed": {
+      "submission_type": "ADDITIONAL_TIME",
+      "project_code": "AP2",
+      "applicant_name": "Serkan Çelik",
+      "existing_duration_months": 24,
+      "requested_duration_months": 12,
+      "total_duration_months": 36,
+      "is_scanned": true,
+      "wet_signature_present": true,
+      "expected_compliance": "COMPLIANT (36 Ay süre sınırı içinde, mavi mürekkepli ıslak imza mevcut)"
+    }
+  }
+}

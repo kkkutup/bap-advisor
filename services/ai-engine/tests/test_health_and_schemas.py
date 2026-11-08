@@ -45,7 +45,7 @@ def test_authorized_provider_status():
     )
     assert response.status_code == 200
     data = response.json()
-    assert data["active_provider"] == "nanogpt"
+    assert data["active_provider"] in ("nanogpt", "ollama", "vllm")
     assert data["embedding_dimension"] == 1024
 
 

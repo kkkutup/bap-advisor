@@ -1,0 +1,139 @@
+{
+  "submission_types": {
+    "NEW_PROJECT": [
+      "proje başvuru formu",
+      "proje öneri formu",
+      "bap proje başvuru",
+      "bap başvuru formu",
+      "yüksek lisans tez projesi",
+      "doktora tez projesi",
+      "bireysel araştırma projesi",
+      "öncelikli alan araştırma projesi",
+      "kapsamlı araştırma projesi",
+      "kariyer başlangıç",
+      "hızlı destek",
+      "lisans öğrencisi araştırma",
+      "yeni proje"
+    ],
+    "OPEN_ACCESS": [
+      "açık erişim",
+      "acik erisim",
+      "open access",
+      "yayın basım ücreti",
+      "yayin basim ucreti",
+      "makale basım desteği",
+      "apc desteği",
+      "apc destegi"
+    ],
+    "ADDITIONAL_TIME": [
+      "ek süre",
+      "ek sure",
+      "süre uzatım",
+      "sure uzatim",
+      "ek süre talep formu",
+      "ek sure talep",
+      "additional time"
+    ],
+    "ADDITIONAL_BUDGET": [
+      "ek bütçe talep",
+      "ek butce talep",
+      "ek bütçe formu",
+      "bütçe artırım talebi",
+      "ek ödenek talebi",
+      "ilave bütçe talebi",
+      "additional budget"
+    ],
+    "PROCUREMENT_ADVANCE": [
+      "satın alma talep",
+      "satin alma talep",
+      "avans açma",
+      "avans açma talebi",
+      "avans kapatma",
+      "yolluk avansı",
+      "harcırah bildirimi",
+      "doğrudan temin talep"
+    ]
+  },
+  "project_codes": [
+    "TP1", "TP2", "TP3",
+    "AP1", "AP2", "AP3", "AP4", "AP7", "AP9"
+  ],
+  "applicant_titles": [
+    "Prof. Dr.",
+    "Prof.Dr.",
+    "Doç. Dr.",
+    "Doç.Dr.",
+    "Dr. Öğr. Üyesi",
+    "Dr.Öğr.Üyesi",
+    "Arş. Gör. Dr.",
+    "Arş.Gör.Dr.",
+    "Öğr. Gör. Dr.",
+    "Öğr.Gör.Dr.",
+    "Arş. Gör.",
+    "Arş.Gör.",
+    "Öğr. Gör.",
+    "Öğr.Gör.",
+    "Dr."
+  ],
+  "field_patterns": {
+    "applicant_name": [
+      "(?:proje yürütücüsü|yürütücü|ad[ıi] soyad[ıi]|araştırmacı|başvuran)\\s*[:：|]?\\s*([A-ZÇĞİÖŞÜa-zçğıöşü\\.\\s]{4,50})",
+      "(?:yürütücünün adı ve soyadı)\\s*[:：|]?\\s*([A-ZÇĞİÖŞÜa-zçğıöşü\\.\\s]{4,50})"
+    ],
+    "department": [
+      "(?:bölüm[üu]|anabilim dalı|birim[iı]|görevi / birimi|görevi / birim|fakülte|enstitü|yüksekokul)\\s*[:：|]?\\s*([A-ZÇĞİÖŞÜa-zçğıöşü,\\s]{3,60})",
+      "(?:görev yaptığı birim)\\s*[:：|]?\\s*([A-ZÇĞİÖŞÜa-zçğıöşü,\\s]{3,60})"
+    ],
+    "project_title": [
+      "(?:proje(?:nin)? ad[ıi]|proje başlığ[ıi]|proje başlığı|başlık)\\s*[:：|]?\\s*([^\\n\\r|]{5,200})",
+      "(?:makale başlığı|yayın adı)\\s*[:：|]?\\s*([^\\n\\r|]{5,200})"
+    ],
+    "requested_budget": [
+      "(?:talep edilen (?:toplam )?bütçe|bütçe toplamı|toplam bütçe|toplam talep|talep edilen destek tutarı)\\s*[:：|]?\\s*([₺0-9\\.,\\s]+(?:TL|TRY|tl)?)",
+      "(?:bütçe\\s*toplamı)\\s*[:：|]?\\s*([₺0-9\\.,\\s]+(?:TL|TRY|tl)?)"
+    ],
+    "existing_approved_budget": [
+      "(?:mevcut bütçe|onaylanan bütçe|önceki bütçe|mevcut onaylı bütçe)\\s*[:：|]?\\s*([₺0-9\\.,\\s]+(?:TL|TRY|tl)?)"
+    ],
+    "requested_duration": [
+      "(?:talep edilen (?:ek )?süre|proje süresi|ek süre talebi|istenen süre|önerilen süre)\\s*[:：|]?\\s*([0-9]{1,3})\\s*(?:ay|yıl|yil)?",
+      "(?:süresi)\\s*[:：|]?\\s*([0-9]{1,3})\\s*(?:ay|yıl|yil)?"
+    ],
+    "existing_duration": [
+      "(?:mevcut (?:onaylanan )?süre|onaylanan süre|önceki süre|mevcut proje süresi)\\s*[:：|]?\\s*([0-9]{1,3})\\s*(?:ay|yıl|yil)?"
+    ]
+  },
+  "budget_categories": {
+    "CONSUMABLE": ["sarf", "kimyasal", "reaktif", "kırtasiye", "tüketim", "sarf malzeme", "deney malzemesi"],
+    "EQUIPMENT": ["cihaz", "alet", "teçhizat", "makine", "donanım", "bilgisayar", "yazıcı", "ekipman"],
+    "SERVICE_PURCHASE": ["hizmet alımı", "hizmet alimi", "analiz", "test", "bakım onarım", "yazılım", "çeviri", "anket uygulama"],
+    "TRAVEL": ["yolluk", "gündelik", "harcırah", "seyahat", "konaklama", "ulaşım", "arazi", "saha çalışması"],
+    "PUBLICATION": ["yayın", "basım", "açık erişim", "apc", "makale ücreti", "page charge", "dergi"]
+  },
+  "ethics_keywords": [
+    "insan denek",
+    "insan katılımcı",
+    "klinik araştırma",
+    "klinik çalışma",
+    "anket",
+    "mülakat",
+    "görüşme formu",
+    "hasta verisi",
+    "hasta kaydı",
+    "kan örneği",
+    "doku örneği",
+    "biyolojik materyal",
+    "deney hayvanı",
+    "laboratuvar hayvanı",
+    "hayvan deneyi",
+    "etik kurul",
+    "etik onay"
+  ],
+  "journal_quartiles": {
+    "Q1_TOP10": ["q1 (%10)", "top %10", "q1 top 10", "ilk %10", "top 10%"],
+    "Q1_OTHER": ["q1", "first quartile"],
+    "Q2": ["q2", "second quartile"],
+    "Q3": ["q3", "third quartile"],
+    "Q4": ["q4", "fourth quartile"]
+  }
+}

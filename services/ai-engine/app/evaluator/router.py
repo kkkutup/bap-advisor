@@ -1,14 +1,14 @@
-from uuid import uuid4
-from fastapi import APIRouter
-from app.config import get_settings
+import logging
+from fastapi import APIRouter, HTTPException, status
+from app.evaluator.service import get_evaluation_service
 from app.schemas import (
     EvaluateRequest,
     EvaluateResponse,
     QaRequest,
     QaResponse,
-    CitationItem,
-    OverallComplianceStatus
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Evaluation & Q&A"])
 
@@ -17,43 +17,31 @@ router = APIRouter(tags=["Evaluation & Q&A"])
 async def evaluate_submission(request: EvaluateRequest) -> EvaluateResponse:
     """
     Combine deterministic rule findings with RAG regulation analysis.
-    Generate revision draft or commission referral summary.
-    Fully implemented in Phase 1/Phase 2 by Agent 4.
+    Generate formal revision return draft or commission referral summary
+    with strict adherence to domain guardrail (no scientific merit judgments).
     """
-    settings = get_settings()
-    active_model = settings.nanogpt_model if settings.llm_provider == "nanogpt" else settings.ollama_model
-
-    return EvaluateResponse(
-        evaluation_id=uuid4(),
-        overall_compliance_status=OverallComplianceStatus.COMPLIANT,
-        rag_findings=[],
-        combined_findings=request.deterministic_findings,
-        revision_draft_tr=None,
-        commission_referral_summary_tr="Başvuru şekli mevzuat kriterlerini sağlamaktadır. BAP Komisyonuna sevk edilebilir.",
-        llm_provider_used=settings.llm_provider,
-        llm_model_name=active_model
-    )
+    service = get_evaluation_service()
+    try:
+        return await service.evaluate_submission(request)
+    except Exception as e:
+        logger.exception(f"Error during submission evaluation: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Evaluation execution failed: {str(e)}",
+        )
 
 
 @router.post("/qa/ask", response_model=QaResponse)
 async def ask_question(request: QaRequest) -> QaResponse:
     """
-    Contextual Q&A grounded on regulation chunks and submission files.
-    Fully implemented in Phase 2 by Agent 4.
+    Contextual Q&A grounded strictly on retrieved regulation chunks and submission files.
     """
-    settings = get_settings()
-    active_model = settings.nanogpt_model if settings.llm_provider == "nanogpt" else settings.ollama_model
-
-    return QaResponse(
-        answer_tr="Mersin Üniversitesi BAP Uygulama Usul ve Esasları uyarınca talebiniz incelenmiştir.",
-        citations=[
-            CitationItem(
-                regulation_doc_name="Mersin Üniversitesi BAP Uygulama Usul ve Esasları",
-                regulation_article_ref="MADDE 4/1-b",
-                verbatim_quote="TP2 (Yüksek Lisans Tez Projeleri): 2026 yılı üst limiti 125.000,00 TL'dir.",
-                score=0.92
-            )
-        ],
-        llm_provider_used=settings.llm_provider,
-        llm_model_name=active_model
-    )
+    service = get_evaluation_service()
+    try:
+        return await service.ask_question(request)
+    except Exception as e:
+        logger.exception(f"Error during Q&A processing: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Q&A execution failed: {str(e)}",
+        )

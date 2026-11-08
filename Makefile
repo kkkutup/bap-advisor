@@ -6,8 +6,9 @@
 SHELL := /bin/bash
 export JAVA_HOME ?= /opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
 export PATH := $(JAVA_HOME)/bin:/opt/homebrew/bin:$(PATH)
+SPRING_PROFILES_ACTIVE ?= local
 
-.PHONY: all help bootstrap dev-db dev-db-down fetch-regulations run-core run-ai run-web test-all test-core test-ai validate-contracts clean
+.PHONY: all help bootstrap dev-db dev-db-down fetch-regulations run-core run-ai run-web test-all test-core test-ai test-web verify-e2e validate-contracts clean
 
 help:
 	@echo "bap-advisor Makefile commands:"
@@ -15,12 +16,14 @@ help:
 	@echo "  make dev-db             - Start PostgreSQL 16 + pgvector container"
 	@echo "  make dev-db-down        - Stop PostgreSQL container"
 	@echo "  make fetch-regulations  - Fetch MEÜ regulation PDFs into data/regulations/"
-	@echo "  make run-core           - Start Spring Boot 3 Core API (:8080)"
+	@echo "  make run-core           - Start Spring Boot 3 Core API (:8080) [SPRING_PROFILES_ACTIVE=local]"
 	@echo "  make run-ai             - Start Python FastAPI AI Engine (:8001)"
 	@echo "  make run-web            - Start Vite Web Dashboard (:5173 / :3000)"
+	@echo "  make verify-e2e         - Run live two-backend end-to-end integration test"
 	@echo "  make test-core          - Run Spring Boot tests"
 	@echo "  make test-ai            - Run Python FastAPI tests"
-	@echo "  make test-all           - Run all backend tests"
+	@echo "  make test-web           - Build and type-check React web dashboard"
+	@echo "  make test-all           - Run all backend and frontend test suites"
 	@echo "  make validate-contracts - Validate OpenAPI specifications & JSON Schemas"
 
 bootstrap:
@@ -36,7 +39,7 @@ fetch-regulations:
 	@uv run --python 3.12 scripts/fetch-meu-regulations.py
 
 run-core:
-	@cd services/core-api && ./mvnw spring-boot:run
+	@cd services/core-api && ./mvnw spring-boot:run -Dspring-boot.run.profiles=$(SPRING_PROFILES_ACTIVE)
 
 run-ai:
 	@cd services/ai-engine && uv run uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
@@ -50,7 +53,13 @@ test-core:
 test-ai:
 	@cd services/ai-engine && uv run pytest
 
-test-all: test-core test-ai
+test-web:
+	@cd apps/web-dashboard && npm run build
+
+test-all: test-core test-ai test-web
+
+verify-e2e:
+	@uv run --directory services/ai-engine python ../../scripts/verify_e2e_live.py
 
 validate-contracts:
 	@uv run --with pyyaml --python 3.12 python -c "import yaml, json, glob; [yaml.safe_load(open(f, 'r', encoding='utf-8')) for f in glob.glob('contracts/*.yaml')]; [json.load(open(f, 'r', encoding='utf-8')) for f in glob.glob('contracts/schemas/*.json')]; [json.load(open(f, 'r', encoding='utf-8')) for f in glob.glob('contracts/seed-data/*.json')]; print('All YAML & JSON contracts valid!')"
@@ -58,3 +67,4 @@ validate-contracts:
 clean:
 	@rm -rf services/core-api/target
 	@rm -rf services/ai-engine/.pytest_cache services/ai-engine/__pycache__
+	@rm -rf apps/web-dashboard/dist

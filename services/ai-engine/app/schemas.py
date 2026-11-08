@@ -1,8 +1,8 @@
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Literal, Optional
-from uuid import UUID
-from pydantic import BaseModel, Field
+from uuid import UUID, uuid4
+from pydantic import BaseModel, Field, model_validator
 
 
 # ------------------------------------------------------------------------------
@@ -189,13 +189,49 @@ class DocumentMarkdownItem(BaseModel):
 
 
 class EvaluateRequest(BaseModel):
-    version_id: UUID
-    submission_type: SubmissionType
+    version_id: UUID = Field(default_factory=uuid4)
+    submission_type: SubmissionType = SubmissionType.NEW_PROJECT
     project_code: Optional[str] = None
     structured_data: StructuredSubmissionData
-    document_markdowns: List[DocumentMarkdownItem]
+    document_markdowns: List[DocumentMarkdownItem] = Field(default_factory=list)
     deterministic_findings: List[FindingItem] = Field(default_factory=list)
     module_flags: EvaluationModuleFlags = Field(default_factory=EvaluationModuleFlags)
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_fields(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            # Accept structured_submission as alias for structured_data
+            if "structured_data" not in data and "structured_submission" in data:
+                data["structured_data"] = data["structured_submission"]
+
+            # Flatten or nest module_flags
+            if "module_flags" not in data:
+                flags = {}
+                for k in [
+                    "run_deterministic_rules",
+                    "run_rag_checklist",
+                    "generate_action_drafts",
+                    "llm_provider_override",
+                    "llm_model_override",
+                ]:
+                    if k in data:
+                        flags[k] = data[k]
+                data["module_flags"] = flags
+
+            if "document_markdowns" not in data or data["document_markdowns"] is None:
+                data["document_markdowns"] = []
+            if "deterministic_findings" not in data or data["deterministic_findings"] is None:
+                data["deterministic_findings"] = []
+
+            # Infer submission_type if not provided at top-level
+            if "submission_type" not in data:
+                s_data = data.get("structured_data")
+                if isinstance(s_data, dict) and "detected_submission_type" in s_data:
+                    data["submission_type"] = s_data["detected_submission_type"]
+                else:
+                    data["submission_type"] = "NEW_PROJECT"
+        return data
 
 
 class EvaluateResponse(BaseModel):
@@ -218,9 +254,9 @@ class ChatMessage(BaseModel):
 
 
 class QaRequest(BaseModel):
-    version_id: UUID
+    version_id: UUID = Field(default_factory=uuid4)
     question: str
-    submission_context: StructuredSubmissionData
+    submission_context: Optional[StructuredSubmissionData] = None
     chat_history: List[ChatMessage] = Field(default_factory=list)
 
 
