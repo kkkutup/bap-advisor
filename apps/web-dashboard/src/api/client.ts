@@ -155,8 +155,8 @@ export async function apiRequest<T>(endpoint: string, options: RequestOptions = 
       return (await response.blob()) as unknown as T;
     }
 
-    // Auto-recovery for 401/403: Attempt transparent relogin & one-shot retry
-    if ((response.status === 401 || response.status === 403) && !endpoint.startsWith('/auth/login')) {
+    // Auto-recovery for 401: Attempt transparent relogin & one-shot retry
+    if (response.status === 401 && !endpoint.startsWith('/auth/login')) {
       const refreshedToken = await transparentRelogin();
       if (refreshedToken) {
         const retryHeaders = {

@@ -57,7 +57,7 @@ public class SecurityConfig {
 
                         // Provider admin
                         .requestMatchers("/api/v1/admin/providers/status").authenticated()
-                        .requestMatchers("/api/v1/admin/providers/config").hasAnyRole("ADMIN", "COORDINATOR")
+                        .requestMatchers("/api/v1/admin/providers/config").hasAnyRole("OFFICER", "COORDINATOR", "ADMIN")
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
 
                         // User management

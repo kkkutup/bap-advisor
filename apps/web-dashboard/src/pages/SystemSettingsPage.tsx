@@ -86,14 +86,27 @@ export const SystemSettingsPage: React.FC = () => {
   }, []);
 
   const handleProviderSelect = (prov: 'nanogpt' | 'ollama' | 'vllm') => {
+    if (prov === selectedProvider) return;
     setSelectedProvider(prov);
     if (prov === 'nanogpt') {
-      setModelName('openai/gpt-4.1-mini');
+      if (providerStatus?.active_provider === 'nanogpt' && providerStatus.active_model) {
+        setModelName(providerStatus.active_model);
+      } else if (!modelName || modelName.startsWith('qwen')) {
+        setModelName('gpt-4o-mini');
+      }
     } else if (prov === 'ollama') {
-      setModelName('qwen2.5:14b-instruct');
+      setModelName(
+        providerStatus?.active_provider === 'ollama' && providerStatus.active_model
+          ? providerStatus.active_model
+          : 'qwen2.5:14b-instruct'
+      );
       setBaseUrl('http://host.docker.internal:11434/v1');
     } else {
-      setModelName('qwen2.5:32b');
+      setModelName(
+        providerStatus?.active_provider === 'vllm' && providerStatus.active_model
+          ? providerStatus.active_model
+          : 'qwen2.5:32b'
+      );
       setBaseUrl('http://host.docker.internal:8000/v1');
     }
   };
@@ -103,25 +116,29 @@ export const SystemSettingsPage: React.FC = () => {
     setSaving(true);
     setSaveSuccess(null);
     try {
+      const trimmedModel = modelName.trim();
       const config: ProviderConfigDto = {
         llm_provider: selectedProvider,
         airgapped_mode: airgappedMode,
       };
 
       if (selectedProvider === 'nanogpt') {
-        config.nanogpt_model = modelName;
-        if (apiKey) config.nanogpt_api_key = apiKey;
+        config.nanogpt_model = trimmedModel;
+        if (apiKey.trim()) config.nanogpt_api_key = apiKey.trim();
       } else if (selectedProvider === 'ollama') {
-        config.ollama_model = modelName;
-        config.ollama_base_url = baseUrl;
+        config.ollama_model = trimmedModel;
+        config.ollama_base_url = baseUrl.trim();
       } else {
-        config.vllm_model = modelName;
-        config.vllm_base_url = baseUrl;
+        config.vllm_model = trimmedModel;
+        config.vllm_base_url = baseUrl.trim();
       }
 
-      await providerApi.updateProviderConfig(config);
-      setSaveSuccess('LLM Sağlayıcı ve Airgap yapılandırması başarıyla kaydedildi.');
-      loadProviderStatus();
+      const updated = await providerApi.updateProviderConfig(config);
+      setProviderStatus(updated);
+      setSelectedProvider(updated.active_provider);
+      setModelName(updated.active_model || trimmedModel);
+      setAirgappedMode(Boolean(updated.airgapped_mode));
+      setSaveSuccess(`LLM Sağlayıcı (${updated.active_provider.toUpperCase()}) ve Model (${updated.active_model || trimmedModel}) başarıyla kaydedildi.`);
     } catch (err: any) {
       alert(`Ayarlar kaydedilemedi: ${err?.message}`);
     } finally {

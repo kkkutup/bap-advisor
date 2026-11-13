@@ -339,6 +339,28 @@ class GroundedSynthesizer:
                 score=float(ch.get("score", 0.9)),
             ))
 
+        q_clean = (question or "").strip()
+        vowels = set("aeıioöuüAEIİOÖUÜ")
+        has_vowel = any(c in vowels for c in q_clean)
+        if len(q_clean) < 4 or not has_vowel:
+            p_info = ""
+            if submission_context:
+                p_code = submission_context.detected_project_code or "BAP"
+                budget = submission_context.requested_budget_total_tl
+                dur = submission_context.requested_duration_months
+                budget_str = f"{budget:,.2f} TL" if budget is not None else "Belirtilmemiş"
+                dur_str = f"{dur} ay" if (dur is not None and dur > 0) else "Belirtilmemiş"
+                p_info = (
+                    f"\n\nİncelenen Başvuru Özeti ({p_code}): Talep Edilen Bütçe: {budget_str}, "
+                    f"Süre: {dur_str}, Islak İmza: {'Mevcut' if submission_context.wet_signature_present else 'Eksik'}."
+                )
+            return (
+                f"İlettiğiniz ifade ('{q_clean}') belirli bir BAP mevzuat konusu veya başvuru kalemi ile eşleştirilemedi.{p_info}\n\n"
+                "Lütfen proje bütçe tavanı, proforma fatura şartı, teknik şartname, ıslak imza, etik kurul belgesi veya "
+                "açık erişim (Q1/Q2) kriterleri gibi somut bir konu hakkında sorunuzu iletiniz.",
+                [],
+            )
+
         # Synthesize grounded answer
         lines = [
             f"Mersin Üniversitesi BAP Mevzuatı ve başvuru verileri çerçevesinde '{question}' sorunuz incelenmiştir:\n"

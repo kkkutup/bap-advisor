@@ -14,21 +14,22 @@ def resolve_regulations_dir() -> Path:
     configured = Path(settings.regulations_dir)
 
     # Candidate locations to find the regulations directory containing files
-    candidates = [
-        # Check repo root data/regulations (relative to this file)
-        Path(__file__).resolve().parents[4] / "data" / "regulations",
-        # Check configured path if relative to repo root
-        Path(__file__).resolve().parents[4] / configured,
-        # Check current working dir
-        Path.cwd() / "data" / "regulations",
-        Path.cwd().parent / "data" / "regulations",
-        Path.cwd().parent.parent / "data" / "regulations",
+    candidates: List[Path] = [
+        configured,
         configured.resolve(),
+        Path.cwd() / "data" / "regulations",
     ]
+    for parent in Path(__file__).resolve().parents:
+        candidates.append(parent / "data" / "regulations")
+        if not configured.is_absolute():
+            candidates.append(parent / configured)
 
     for cand in candidates:
-        if cand.exists() and cand.is_dir() and (any(cand.glob("*.md")) or any(cand.glob("*.pdf"))):
-            return cand.resolve()
+        try:
+            if cand.exists() and cand.is_dir() and (any(cand.glob("*.md")) or any(cand.glob("*.pdf"))):
+                return cand.resolve()
+        except Exception:
+            continue
 
     # Fallback to configured directory
     configured.mkdir(parents=True, exist_ok=True)

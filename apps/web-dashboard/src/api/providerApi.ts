@@ -1,4 +1,4 @@
-import { apiRequest } from './client';
+import { apiRequest, isForceOffline } from './client';
 import { ProviderStatusResponse, ProviderConfigDto } from '../types/api';
 import { MOCK_PROVIDER_STATUS } from './mockData';
 
@@ -7,23 +7,28 @@ let localProviderStatus: ProviderStatusResponse = { ...MOCK_PROVIDER_STATUS };
 export const providerApi = {
   async getProviderStatus(): Promise<ProviderStatusResponse> {
     try {
-      return await apiRequest<ProviderStatusResponse>('/admin/providers/status');
-    } catch {
+      const res = await apiRequest<ProviderStatusResponse>('/admin/providers/status');
+      localProviderStatus = { ...localProviderStatus, ...res };
+      return localProviderStatus;
+    } catch (err) {
+      if (!isForceOffline()) throw err;
       return localProviderStatus;
     }
   },
 
-  async updateProviderConfig(config: ProviderConfigDto): Promise<{ success: boolean }> {
+  async updateProviderConfig(config: ProviderConfigDto): Promise<ProviderStatusResponse> {
     try {
-      await apiRequest('/admin/providers/config', {
+      const res = await apiRequest<ProviderStatusResponse>('/admin/providers/config', {
         method: 'PUT',
         body: JSON.stringify(config),
       });
-      return { success: true };
-    } catch {
+      localProviderStatus = { ...localProviderStatus, ...res };
+      return localProviderStatus;
+    } catch (err) {
+      if (!isForceOffline()) throw err;
       localProviderStatus.active_provider = config.llm_provider;
       if (config.llm_provider === 'nanogpt') {
-        localProviderStatus.active_model = config.nanogpt_model || 'openai/gpt-4.1-mini';
+        localProviderStatus.active_model = config.nanogpt_model || localProviderStatus.active_model || 'gpt-4o-mini';
       } else if (config.llm_provider === 'ollama') {
         localProviderStatus.active_model = config.ollama_model || 'qwen2.5:14b-instruct';
       } else {
@@ -32,7 +37,7 @@ export const providerApi = {
       if (config.airgapped_mode !== undefined && config.airgapped_mode !== null) {
         localProviderStatus.airgapped_mode = config.airgapped_mode;
       }
-      return { success: true };
+      return localProviderStatus;
     }
   },
 };

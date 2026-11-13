@@ -24,7 +24,7 @@ public class AdminProviderController {
     }
 
     @PutMapping("/config")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COORDINATOR')")
+    @PreAuthorize("hasAnyRole('OFFICER', 'COORDINATOR', 'ADMIN')")
     public ResponseEntity<AiEngineClient.ProviderStatus> updateProviderConfig(@RequestBody Map<String, Object> config) {
         return ResponseEntity.ok(aiEngineClient.updateProviderConfig(config));
     }
