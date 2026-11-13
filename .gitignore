@@ -69,8 +69,6 @@ apps/web-dashboard/.vite/
 # Application Data & Uploads
 data/uploads/*
 !data/uploads/.gitkeep
-data/regulations/*.pdf
-data/regulations/.local_rag_index.*
 !data/regulations/.gitkeep
 services/core-api/data/
 services/ai-engine/data/
