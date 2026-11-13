@@ -70,7 +70,7 @@ class LocalEmbedder:
             elif torch.cuda.is_available():
                 device = "cuda"
 
-            # First attempt: load only from local cache to avoid hanging on 2.2GB downloads
+            # First attempt: load only from local cache to avoid hanging on 2.2GB downloads during HTTP requests
             try:
                 self._st_model = SentenceTransformer(
                     settings.embedding_model,
@@ -80,8 +80,8 @@ class LocalEmbedder:
                 logger.info(f"Loaded cached {settings.embedding_model} on {device}.")
                 return
             except Exception:
-                if settings.airgapped_mode or os.environ.get("PYTEST_CURRENT_TEST"):
-                    logger.info("Local weights not found and airgapped/test mode active; using deterministic embedder.")
+                if os.environ.get("BAP_DOWNLOAD_HF_WEIGHTS", "").lower() not in ("true", "1", "yes"):
+                    logger.info("Local HF weights not cached; using fast deterministic embedder to prevent HTTP timeout.")
                     self._use_fast_mode = True
                     return
 

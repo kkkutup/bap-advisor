@@ -43,6 +43,7 @@ services:
       AIRGAPPED_MODE: ${AIRGAPPED_MODE:-false}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-m3}
       RERANKER_MODEL: ${RERANKER_MODEL:-BAAI/bge-reranker-v2-m3}
+      BAP_FAST_EMBEDDINGS: ${BAP_FAST_EMBEDDINGS:-true}
       ENABLE_VISION_OCR_FALLBACK: ${ENABLE_VISION_OCR_FALLBACK:-false}
       STORAGE_DIR: /app/data/uploads
       REGULATIONS_DIR: /app/data/regulations
