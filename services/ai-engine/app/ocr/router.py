@@ -159,9 +159,9 @@ async def extract_ocr_data(request: OcrExtractRequest) -> OcrExtractResponse:
                 parsed_tables_json=[]
             ))
 
-    # Synthesize StructuredSubmissionData across all documents in submission
+    # Synthesize StructuredSubmissionData across all documents in submission (Hybrid Regex/Table + LLM)
     if docs_for_extraction:
-        structured_data = extractor.extract_submission_data(docs_for_extraction)
+        structured_data = await extractor.extract_submission_data_async(docs_for_extraction)
     else:
         # Fallback default stub for dummy/non-existent paths in early integration tests
         structured_data = StructuredSubmissionData(

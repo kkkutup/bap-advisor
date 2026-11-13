@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import re
 from typing import Any, Dict, List, Optional, Tuple
@@ -10,6 +11,8 @@ from app.schemas import (
     StructuredSubmissionData,
     SubmissionType
 )
+
+logger = logging.getLogger(__name__)
 
 
 class FormExtractor:
@@ -499,3 +502,280 @@ class FormExtractor:
             if kw in norm:
                 return True
         return False
+
+    async def extract_submission_data_async(
+        self,
+        documents: List[Dict[str, Any]]
+    ) -> StructuredSubmissionData:
+        """
+        Hybrid 2-Tier Form Extraction:
+        Tier 1: Fast deterministic table & regex extraction
+        Tier 2: Live LLM Structured Zero-Hallucination Extraction & Intelligent Merge
+        """
+        structured = self.extract_submission_data(documents)
+
+        combined_text = "\n\n".join(doc.get("parsed_text", "") for doc in documents).strip()
+        if not combined_text:
+            return structured
+
+        try:
+            from app.llm.gateway import get_llm_gateway
+            gateway = get_llm_gateway()
+
+            probe = await gateway.probe_provider_connection()
+            if not probe.get("connected"):
+                logger.info(f"LLM Gateway not connected ({probe.get('reason')}); using deterministic extraction.")
+                return structured
+
+            # Collect extracted tables for contextual extraction
+            table_summaries = []
+            for doc in documents:
+                for tbl in doc.get("parsed_tables", []):
+                    headers = tbl.get("headers", [])
+                    rows = tbl.get("rows", [])
+                    if rows:
+                        table_summaries.append(
+                            f"Dosya: {doc.get('file_name', '')} | Başlıklar: {headers} | Satırlar: {rows[:15]}"
+                        )
+
+            tables_context = "\n".join(table_summaries[:6]) if table_summaries else "Tablo bulunamadı."
+
+            prompt = (
+                "Aşağıdaki Mersin Üniversitesi BAP başvuru belgesi metni ve tablolarından "
+                "YALNIZCA belgede açıkça yazan bilgileri çıkar ve JSON olarak döndür.\n"
+                "KESİNLİKLE UYDURMA (HALLUCINATION) YAPMA! Belgede yazmayan hiçbir bütçe rakamını, "
+                "projeyi, ismi veya kalemi ASLA UYDURMA; belgede yoksa null veya [] bırak.\n\n"
+                "Döndürülecek JSON Şeması:\n"
+                "{\n"
+                '  "detected_submission_type": "NEW_PROJECT" | "OPEN_ACCESS" | "ADDITIONAL_BUDGET" | "ADDITIONAL_TIME" | "PROCUREMENT_ADVANCE",\n'
+                '  "detected_project_code": string veya null (örn: "TP2", "AP2", "TP1", "TP3", "AP1", "AP3", "AP4", "AP7", "AP9"),\n'
+                '  "applicant_name": string veya null,\n'
+                '  "applicant_title": string veya null (örn: "Prof. Dr.", "Doç. Dr.", "Dr. Öğr. Üyesi", "Arş. Gör. Dr.", "Öğr. Gör. Dr."),\n'
+                '  "department": string veya null,\n'
+                '  "project_title": string veya null,\n'
+                '  "requested_budget_total_tl": number veya null (belgede yazan talep edilen toplam bütçe rakamı),\n'
+                '  "existing_approved_budget_tl": number veya null,\n'
+                '  "requested_duration_months": integer veya null (proje süresi ay cinsinden),\n'
+                '  "existing_duration_months": integer veya null,\n'
+                '  "budget_line_items": [\n'
+                '    {\n'
+                '      "category": "CONSUMABLE" | "EQUIPMENT" | "SERVICE_PURCHASE" | "TRAVEL" | "PUBLICATION" | "OTHER",\n'
+                '      "name": string,\n'
+                '      "quantity": number veya null,\n'
+                '      "unit": string veya null,\n'
+                '      "unit_price_tl": number veya null,\n'
+                '      "total_tl": number,\n'
+                '      "vat_included": boolean,\n'
+                '      "days": integer veya null,\n'
+                '      "daily_rate_tl": number veya null\n'
+                '    }\n'
+                '  ],\n'
+                '  "journal_quartile": "Q1_TOP10" | "Q1_OTHER" | "Q2" | "Q3" | "Q4" | null,\n'
+                '  "ethics_required_keywords_detected": boolean\n'
+                "}\n\n"
+                f"BELGEDEKİ TABLOLAR:\n{tables_context}\n\n"
+                f"BELGEDEN OKUNAN METİN:\n{combined_text[:18000]}"
+            )
+
+            messages = [
+                {
+                    "role": "system",
+                    "content": (
+                        "Sen Mersin Üniversitesi BAP Birimi mevzuat uygunluk ön inceleme asistanısın. "
+                        "Görevin taranmış/dijital başvuru belgelerinden yalnızca ve sadece belgede yazan "
+                        "somut başvuru verilerini JSON olarak çıkarmaktır. Asla veri uydurmazsın."
+                    )
+                },
+                {"role": "user", "content": prompt}
+            ]
+
+            llm_resp = await gateway.chat_completion(
+                messages,
+                temperature=0.0,
+                response_format={"type": "json_object"}
+            )
+
+            if not llm_resp:
+                return structured
+
+            # Parse JSON
+            raw_json = llm_resp.strip()
+            # Clean possible markdown fence
+            if raw_json.startswith("```json"):
+                raw_json = raw_json[7:]
+            if raw_json.startswith("```"):
+                raw_json = raw_json[3:]
+            if raw_json.endswith("```"):
+                raw_json = raw_json[:-3]
+            raw_json = raw_json.strip()
+
+            data = json.loads(raw_json)
+            if isinstance(data, dict):
+                # Handle possible top-level wrappers
+                if "data" in data and isinstance(data["data"], dict):
+                    data = data["data"]
+                elif "structured_data" in data and isinstance(data["structured_data"], dict):
+                    data = data["structured_data"]
+                return self._merge_deterministic_and_llm(structured, data)
+
+        except Exception as exc:
+            logger.warning(f"Async LLM metadata extraction failed gracefully: {exc}; returning deterministic data.")
+
+        return structured
+
+    def _merge_deterministic_and_llm(
+        self,
+        structured: StructuredSubmissionData,
+        data: Dict[str, Any]
+    ) -> StructuredSubmissionData:
+        # 1. Project Title
+        llm_title = data.get("project_title")
+        if llm_title and isinstance(llm_title, str) and llm_title.strip() and llm_title.strip().lower() != "null":
+            clean_title = llm_title.strip()
+            if not structured.project_title or len(structured.project_title.strip()) < 5 or structured.project_title.startswith("Örnek"):
+                structured.project_title = clean_title
+
+        # 2. Applicant Name
+        llm_applicant = data.get("applicant_name")
+        if llm_applicant and isinstance(llm_applicant, str) and llm_applicant.strip() and llm_applicant.strip().lower() != "null":
+            clean_app = llm_applicant.strip()
+            if not structured.applicant_name or structured.applicant_name in ("Örnek Yürütücü", "Belgeden Otomatik Çıkarılacak"):
+                structured.applicant_name = clean_app
+
+        # 3. Applicant Title
+        llm_title_pfx = data.get("applicant_title")
+        if llm_title_pfx and isinstance(llm_title_pfx, str) and llm_title_pfx.strip() and llm_title_pfx.strip().lower() != "null":
+            if not structured.applicant_title:
+                structured.applicant_title = llm_title_pfx.strip()
+
+        # 4. Department
+        llm_dept = data.get("department")
+        if llm_dept and isinstance(llm_dept, str) and llm_dept.strip() and llm_dept.strip().lower() != "null":
+            if not structured.department:
+                structured.department = llm_dept.strip()
+
+        # 5. Detected Project Code
+        llm_code = data.get("detected_project_code")
+        if llm_code and isinstance(llm_code, str) and llm_code.strip() and llm_code.strip().lower() != "null":
+            clean_code = llm_code.strip().upper()
+            if not structured.detected_project_code:
+                structured.detected_project_code = clean_code
+
+        # 6. Submission Type
+        llm_type = data.get("detected_submission_type")
+        if llm_type and isinstance(llm_type, str):
+            try:
+                sub_t = SubmissionType(llm_type.strip().upper())
+                if structured.detected_submission_type == SubmissionType.NEW_PROJECT and sub_t != SubmissionType.NEW_PROJECT:
+                    structured.detected_submission_type = sub_t
+            except ValueError:
+                pass
+
+        # 7. Requested Budget Total TL
+        llm_req_budget = data.get("requested_budget_total_tl")
+        if llm_req_budget is not None:
+            parsed_b = CurrencyParser.parse_tl_amount(str(llm_req_budget))
+            if parsed_b and parsed_b > 0:
+                sum_items = sum(it.total_tl for it in structured.budget_line_items) if structured.budget_line_items else 0
+                if structured.requested_budget_total_tl is None or structured.requested_budget_total_tl == 0:
+                    structured.requested_budget_total_tl = parsed_b
+                elif sum_items > 0 and abs(sum_items - parsed_b) < 0.01 and abs(sum_items - structured.requested_budget_total_tl) > 1.0:
+                    # Prefer the value that matches the exact sum of line items
+                    structured.requested_budget_total_tl = parsed_b
+
+        # 8. Existing Approved Budget TL
+        llm_exist_budget = data.get("existing_approved_budget_tl")
+        if llm_exist_budget is not None:
+            parsed_eb = CurrencyParser.parse_tl_amount(str(llm_exist_budget))
+            if parsed_eb and parsed_eb > 0:
+                if structured.existing_approved_budget_tl is None:
+                    structured.existing_approved_budget_tl = parsed_eb
+
+        # 9. Requested Duration Months
+        llm_dur = data.get("requested_duration_months")
+        if llm_dur is not None:
+            try:
+                dur_int = int(llm_dur)
+                if dur_int > 0 and (structured.requested_duration_months is None or structured.requested_duration_months == 0):
+                    structured.requested_duration_months = dur_int
+            except (ValueError, TypeError):
+                pass
+
+        # 10. Existing Duration Months
+        llm_ex_dur = data.get("existing_duration_months")
+        if llm_ex_dur is not None:
+            try:
+                dur_int = int(llm_ex_dur)
+                if dur_int > 0 and (structured.existing_duration_months is None or structured.existing_duration_months == 0):
+                    structured.existing_duration_months = dur_int
+            except (ValueError, TypeError):
+                pass
+
+        # 11. Budget Line Items
+        if len(structured.budget_line_items) == 0:
+            raw_items = data.get("budget_line_items")
+            if isinstance(raw_items, list) and raw_items:
+                extracted_items = []
+                for it in raw_items:
+                    if not isinstance(it, dict):
+                        continue
+                    it_name = str(it.get("name", "")).strip()
+                    if not it_name or it_name.lower().startswith(("toplam", "genel toplam", "ara toplam")):
+                        continue
+                    raw_tot = it.get("total_tl")
+                    tot = CurrencyParser.parse_tl_amount(str(raw_tot)) if raw_tot is not None else None
+                    if not tot or tot <= 0:
+                        continue
+
+                    cat_raw = str(it.get("category", "CONSUMABLE")).strip().upper()
+                    try:
+                        cat = BudgetCategory(cat_raw)
+                    except ValueError:
+                        cat = BudgetCategory.OTHER
+
+                    raw_qty = it.get("quantity")
+                    qty = float(raw_qty) if raw_qty is not None and str(raw_qty).replace(".", "", 1).isdigit() else None
+
+                    raw_price = it.get("unit_price_tl")
+                    price = float(raw_price) if raw_price is not None and str(raw_price).replace(".", "", 1).isdigit() else None
+
+                    raw_days = it.get("days")
+                    days = int(raw_days) if raw_days is not None and str(raw_days).isdigit() else None
+
+                    raw_daily = it.get("daily_rate_tl")
+                    daily = float(raw_daily) if raw_daily is not None and str(raw_daily).replace(".", "", 1).isdigit() else None
+
+                    extracted_items.append(BudgetLineItem(
+                        category=cat,
+                        name=it_name,
+                        quantity=qty,
+                        unit=str(it.get("unit", "")).strip() or None,
+                        unit_price_tl=price,
+                        total_tl=tot,
+                        vat_included=bool(it.get("vat_included", True)),
+                        days=days,
+                        daily_rate_tl=daily
+                    ))
+
+                if extracted_items:
+                    structured.budget_line_items = extracted_items
+                    if structured.requested_budget_total_tl is None or structured.requested_budget_total_tl == 0:
+                        structured.requested_budget_total_tl = round(sum(i.total_tl for i in extracted_items), 2)
+
+        # 12. Journal Quartile
+        llm_q = data.get("journal_quartile")
+        if llm_q and isinstance(llm_q, str) and not structured.journal_quartile:
+            clean_q = llm_q.strip().upper()
+            if clean_q in ("Q1_TOP10", "Q1_OTHER", "Q2", "Q3", "Q4"):
+                structured.journal_quartile = clean_q
+
+        # 13. Ethics Keywords
+        if not structured.ethics_required_keywords_detected and data.get("ethics_required_keywords_detected"):
+            structured.ethics_required_keywords_detected = bool(data["ethics_required_keywords_detected"])
+
+        structured.notes = (
+            f"Hibrit Çıkarım Tamamlandı: Tablo/Regex ({len(structured.budget_line_items)} kalem) + "
+            f"LLM Yapısal Doğrulama ile mevzuat form alanları işlendi."
+        )
+
+        return structured

@@ -18,32 +18,6 @@ services:
       timeout: 5s
       retries: 5
 
-  core-api:
-    build:
-      context: ./services/core-api
-      dockerfile: Dockerfile
-    container_name: bap-advisor-core-api
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      SPRING_PROFILES_ACTIVE: prod
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-bap_advisor}?currentSchema=core
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-bap_user}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-bap_password_change_me}
-      SERVER_PORT: 8080
-      JWT_SECRET: ${JWT_SECRET:-super_secret_jwt_signing_key_at_least_256_bits_long_for_hmac_sha256_mersin_bap}
-      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-bap_internal_service_secure_token_secret_key_meu_2026}
-      AI_ENGINE_BASE_URL: http://ai-engine:8001
-      STORAGE_DIR: /app/data/uploads
-      REGULATIONS_DIR: /app/data/regulations
-    ports:
-      - "8080:8080"
-    volumes:
-      - app_uploads:/app/data/uploads
-      - app_regulations:/app/data/regulations
-
   ai-engine:
     build:
       context: ./services/ai-engine
@@ -68,13 +42,54 @@ services:
       VLLM_MODEL: ${VLLM_MODEL:-qwen2.5:14b-instruct}
       AIRGAPPED_MODE: ${AIRGAPPED_MODE:-false}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-m3}
+      RERANKER_MODEL: ${RERANKER_MODEL:-BAAI/bge-reranker-v2-m3}
+      ENABLE_VISION_OCR_FALLBACK: ${ENABLE_VISION_OCR_FALLBACK:-false}
       STORAGE_DIR: /app/data/uploads
       REGULATIONS_DIR: /app/data/regulations
     ports:
       - "8001:8001"
     volumes:
-      - app_uploads:/app/data/uploads
-      - app_regulations:/app/data/regulations
+      - ./data/uploads:/app/data/uploads
+      - ./data/regulations:/app/data/regulations
+      - huggingface_cache:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/internal/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  core-api:
+    build:
+      context: ./services/core-api
+      dockerfile: Dockerfile
+    container_name: bap-advisor-core-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ai-engine:
+        condition: service_started
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-bap_advisor}?currentSchema=core
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-bap_user}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-bap_password_change_me}
+      SERVER_PORT: 8080
+      JWT_SECRET: ${JWT_SECRET:-super_secret_jwt_signing_key_at_least_256_bits_long_for_hmac_sha256_mersin_bap}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-bap_internal_service_secure_token_secret_key_meu_2026}
+      AI_ENGINE_BASE_URL: http://ai-engine:8001
+      STORAGE_DIR: /app/data/uploads
+      REGULATIONS_DIR: /app/data/regulations
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data/uploads:/app/data/uploads
+      - ./data/regulations:/app/data/regulations
+      - ./contracts:/app/contracts:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   web-dashboard:
     build:
@@ -85,9 +100,8 @@ services:
     depends_on:
       - core-api
     ports:
-      - "3000:80"
+      - "${WEB_PORT:-3000}:80"
 
 volumes:
   postgres_data:
-  app_uploads:
-  app_regulations:
+  huggingface_cache:

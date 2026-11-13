@@ -10,9 +10,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml README.md ./
+COPY pyproject.toml README.md alembic.ini ./
 RUN uv pip install --no-cache -r pyproject.toml
 
+COPY alembic alembic
 COPY app app
 
 EXPOSE 8001

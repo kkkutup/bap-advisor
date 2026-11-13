@@ -142,12 +142,17 @@ public class SubmissionService {
             String search,
             Pageable pageable
     ) {
+        String safeProjectCode = (projectCode == null || projectCode.isBlank()) ? "" : projectCode.trim();
+        String safeSearchPattern = (search == null || search.isBlank())
+                ? "%"
+                : "%" + search.trim().toLowerCase(Locale.ROOT) + "%";
+
         Page<Submission> page = submissionRepository.findWithFilters(
                 status,
                 submissionType,
-                projectCode,
+                safeProjectCode,
                 assignedOfficerId,
-                search,
+                safeSearchPattern,
                 pageable
         );
 
@@ -277,6 +282,78 @@ public class SubmissionService {
         if (structuredData == null) {
             structuredData = createInitialStructuredData(submission, ocrParams);
         }
+
+        // Two-way synchronization between user form input and OCR structured data:
+        String resolvedTitle = (structuredData.projectTitle() != null && !structuredData.projectTitle().isBlank())
+                ? structuredData.projectTitle().trim()
+                : (submission.getTitle() != null ? submission.getTitle().trim() : "");
+        String resolvedApplicant = (structuredData.applicantName() != null && !structuredData.applicantName().isBlank())
+                ? structuredData.applicantName().trim()
+                : (submission.getApplicantName() != null ? submission.getApplicantName().trim() : "");
+        String resolvedApplicantTitle = (structuredData.applicantTitle() != null && !structuredData.applicantTitle().isBlank())
+                ? structuredData.applicantTitle().trim()
+                : submission.getApplicantTitle();
+        String resolvedDept = (structuredData.department() != null && !structuredData.department().isBlank())
+                ? structuredData.department().trim()
+                : submission.getDepartment();
+        String resolvedCode = (structuredData.detectedProjectCode() != null && !structuredData.detectedProjectCode().isBlank())
+                ? structuredData.detectedProjectCode().trim()
+                : submission.getProjectCode();
+        SubmissionType resolvedType = (structuredData.detectedSubmissionType() != null)
+                ? structuredData.detectedSubmissionType()
+                : submission.getSubmissionType();
+
+        // If user typed a specific title, but OCR produced placeholder or empty
+        if ((resolvedTitle.isBlank() || resolvedTitle.equalsIgnoreCase("Belgeden Otomatik Çıkarılacak"))
+                && submission.getTitle() != null && !submission.getTitle().equalsIgnoreCase("Belgeden Otomatik Çıkarılacak")) {
+            resolvedTitle = submission.getTitle().trim();
+        }
+        if ((resolvedApplicant.isBlank() || resolvedApplicant.equalsIgnoreCase("Belgeden Otomatik Çıkarılacak"))
+                && submission.getApplicantName() != null && !submission.getApplicantName().equalsIgnoreCase("Belgeden Otomatik Çıkarılacak")) {
+            resolvedApplicant = submission.getApplicantName().trim();
+        }
+
+        // Update submission fields if they were placeholders or empty and OCR found real values
+        if ((submission.getTitle() == null || submission.getTitle().isBlank() || submission.getTitle().equalsIgnoreCase("Belgeden Otomatik Çıkarılacak"))
+                && !resolvedTitle.isBlank() && !resolvedTitle.equalsIgnoreCase("Belgeden Otomatik Çıkarılacak")) {
+            submission.setTitle(resolvedTitle);
+        }
+        if ((submission.getApplicantName() == null || submission.getApplicantName().isBlank() || submission.getApplicantName().equalsIgnoreCase("Belgeden Otomatik Çıkarılacak"))
+                && !resolvedApplicant.isBlank() && !resolvedApplicant.equalsIgnoreCase("Belgeden Otomatik Çıkarılacak")) {
+            submission.setApplicantName(resolvedApplicant);
+        }
+        if ((submission.getApplicantTitle() == null || submission.getApplicantTitle().isBlank()) && resolvedApplicantTitle != null) {
+            submission.setApplicantTitle(resolvedApplicantTitle);
+        }
+        if ((submission.getDepartment() == null || submission.getDepartment().isBlank()) && resolvedDept != null) {
+            submission.setDepartment(resolvedDept);
+        }
+        if ((submission.getProjectCode() == null || submission.getProjectCode().isBlank()) && resolvedCode != null) {
+            submission.setProjectCode(resolvedCode);
+        }
+        if (submission.getSubmissionType() == null && resolvedType != null) {
+            submission.setSubmissionType(resolvedType);
+        }
+
+        structuredData = new StructuredSubmissionDto(
+                resolvedType,
+                resolvedCode,
+                resolvedApplicant,
+                resolvedApplicantTitle,
+                resolvedDept,
+                resolvedTitle,
+                structuredData.requestedBudgetTotalTl(),
+                structuredData.existingApprovedBudgetTl(),
+                structuredData.requestedDurationMonths(),
+                structuredData.existingDurationMonths(),
+                structuredData.budgetLineItems(),
+                structuredData.journalQuartile(),
+                structuredData.wetSignaturePresent(),
+                structuredData.ethicsRequiredKeywordsDetected(),
+                structuredData.detectedAttachments(),
+                structuredData.notes()
+        );
+
         savedVersion.setExtractedMetadataJson(writeJson(structuredData));
         versionRepository.save(savedVersion);
 
@@ -373,7 +450,17 @@ public class SubmissionService {
                 .orElseThrow(() -> new ResourceNotFoundException("Başvuru bulunamadı: " + submissionId));
 
         SubmissionStatus beforeStatus = submission.getStatus();
-        submission.setStatus(request.targetStatus());
+        SubmissionStatus targetStatus = request.targetStatus();
+
+        if (beforeStatus == SubmissionStatus.REVISION_REQUESTED && targetStatus == SubmissionStatus.COMMISSION_REFERRED) {
+            throw new BadRequestException(
+                    "Revizyon (iade) istenmiş bir başvuru, yürütücü tarafından yeni revize versiyon (v"
+                            + (submission.getCurrentVersionNo() + 1)
+                            + ") yüklenip tekrar değerlendirilmeden Profesör Kuruluna (BAP Komisyonuna) sevk edilemez."
+            );
+        }
+
+        submission.setStatus(targetStatus);
         submission.setUpdatedAt(Instant.now());
         Submission saved = submissionRepository.save(submission);
 

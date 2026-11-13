@@ -13,5 +13,6 @@ public record SubmissionDocumentDto(
         @JsonProperty("doc_role") DocumentRole docRole,
         @JsonProperty("ocr_confidence") Double ocrConfidence,
         @JsonProperty("has_signature_detected") Boolean hasSignatureDetected,
-        @JsonProperty("storage_path") String storagePath
+        @JsonProperty("storage_path") String storagePath,
+        @JsonProperty("parsed_markdown") String parsedMarkdown
 ) {}

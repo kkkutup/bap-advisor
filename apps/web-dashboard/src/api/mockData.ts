@@ -570,7 +570,7 @@ export const MOCK_SUBMISSIONS: SubmissionDetailResponse[] = [
     external_bap2_id: 'BAP2-99510',
     submission_type: 'PROCUREMENT_ADVANCE',
     project_code: 'TP3',
-    title: 'Mersin İli Tarım Alanlarında Toprak Verimliliği ve Ağır Metal Haritalaması — 2. Dilim Satın Alma ve Avans',
+    title: 'Mersin İli Tarım Alanlarında Toprak Verimliliği ve Ağır Metal Haritalaması (2. Dilim Satın Alma ve Avans)',
     applicant_name: 'Prof. Dr. Kenan Şimşek',
     applicant_title: 'Prof. Dr.',
     department: 'Ziraat Fakültesi / Toprak Bilimi AD',
@@ -614,7 +614,7 @@ export const MOCK_SUBMISSIONS: SubmissionDetailResponse[] = [
         applicant_name: 'Prof. Dr. Kenan Şimşek',
         applicant_title: 'Prof. Dr.',
         department: 'Ziraat Fakültesi',
-        project_title: 'Toprak Verimliliği ve Ağır Metal Haritalaması — Satın Alma / Avans',
+        project_title: 'Toprak Verimliliği ve Ağır Metal Haritalaması (Satın Alma / Avans)',
         requested_budget_total_tl: 48000.0,
         existing_approved_budget_tl: 210000.0,
         requested_duration_months: null,
@@ -701,7 +701,7 @@ export const MOCK_EVALUATION_RESULT_SUB001_V2: EvaluationResultResponse = {
   revision_draft_tr: null,
   commission_referral_summary_tr: `BAP KOMİSYONU (PROFESÖR KURULU) ÖN İNCELEME SEVK ÖZETİ
 Başvuru No: BAP-2026-00142 (Revizyon: v2)
-Proje Türü: TP2 — Yüksek Lisans Tez Projesi
+Proje Türü: TP2 - Yüksek Lisans Tez Projesi
 Yürütücü: Doç. Dr. Selim Aktaş (Su Ürünleri Fakültesi)
 Talep Edilen Bütçe: 124.000,00 TL (2026 Yılı TP2 Üst Sınırı: 125.000,00 TL)
 Talep Edilen Süre: 18 Ay (Azami: 24 Ay)

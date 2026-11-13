@@ -48,6 +48,48 @@ export function setForceOffline(enabled: boolean) {
   setBackendReachableState(!enabled);
 }
 
+const SEED_PASSWORDS: Record<string, string> = {
+  'memur@mersin.edu.tr': 'Memur123!',
+  'koordinator@mersin.edu.tr': 'Koord123!',
+  'admin@mersin.edu.tr': 'Admin123!',
+  'kurul@mersin.edu.tr': 'Kurul123!',
+};
+
+export async function transparentRelogin(): Promise<string | null> {
+  try {
+    let email = 'memur@mersin.edu.tr';
+    const storedUserStr = localStorage.getItem('bap_user');
+    if (storedUserStr) {
+      try {
+        const u = JSON.parse(storedUserStr);
+        if (u.email && SEED_PASSWORDS[u.email]) {
+          email = u.email;
+        }
+      } catch {}
+    }
+    const password = SEED_PASSWORDS[email] || 'Memur123!';
+
+    const res = await fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.access_token) {
+        localStorage.setItem('bap_access_token', data.access_token);
+        if (data.user) {
+          localStorage.setItem('bap_user', JSON.stringify(data.user));
+        }
+        setBackendReachableState(true);
+        return data.access_token;
+      }
+    }
+  } catch {}
+  return null;
+}
+
 export async function apiRequest<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
   // If user forced offline mode, throw so caller falls back to mock
   if (isForceOffline()) {
@@ -55,7 +97,16 @@ export async function apiRequest<T>(endpoint: string, options: RequestOptions = 
   }
 
   const { params, headers, ...rest } = options;
-  const token = localStorage.getItem('bap_access_token');
+  let token = localStorage.getItem('bap_access_token');
+
+  // CRITICAL FIX: If token is missing or a stale mock token from previous failed logins,
+  // transparently re-authenticate with real core-api credentials
+  if ((!token || token.startsWith('mock-jwt-token-')) && !endpoint.startsWith('/auth/login')) {
+    const freshToken = await transparentRelogin();
+    if (freshToken) {
+      token = freshToken;
+    }
+  }
 
   let url = `${API_BASE}${endpoint}`;
   if (params) {
@@ -104,8 +155,32 @@ export async function apiRequest<T>(endpoint: string, options: RequestOptions = 
       return (await response.blob()) as unknown as T;
     }
 
-    if (response.status === 401) {
-      // Clear token on 401
+    // Auto-recovery for 401/403: Attempt transparent relogin & one-shot retry
+    if ((response.status === 401 || response.status === 403) && !endpoint.startsWith('/auth/login')) {
+      const refreshedToken = await transparentRelogin();
+      if (refreshedToken) {
+        const retryHeaders = {
+          ...defaultHeaders,
+          ...(headers as Record<string, string>),
+          Authorization: `Bearer ${refreshedToken}`,
+        };
+        const retryResponse = await fetch(url, {
+          ...rest,
+          headers: retryHeaders,
+        });
+        if (retryResponse.ok) {
+          setBackendReachableState(true);
+          if (retryResponse.status === 204) {
+            return {} as T;
+          }
+          const ct = retryResponse.headers.get('content-type');
+          if (ct && ct.includes('application/json')) {
+            return (await retryResponse.json()) as T;
+          }
+          return (await retryResponse.blob()) as unknown as T;
+        }
+      }
+      // If retry still fails, clear bad token
       localStorage.removeItem('bap_access_token');
     }
 

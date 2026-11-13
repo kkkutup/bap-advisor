@@ -341,8 +341,28 @@ class GroundedSynthesizer:
 
         # Synthesize grounded answer
         lines = [
-            "Mersin Üniversitesi Bilimsel Araştırma Projeleri (MEÜ BAP) mevzuatı çerçevesinde sorunuz incelenmiştir:\n"
+            f"Mersin Üniversitesi BAP Mevzuatı ve başvuru verileri çerçevesinde '{question}' sorunuz incelenmiştir:\n"
         ]
+
+        if submission_context:
+            p_code = submission_context.detected_project_code or "BAP"
+            budget = submission_context.requested_budget_total_tl
+            dur = submission_context.requested_duration_months
+            dur_str = f"{dur} ay" if (dur is not None and dur > 0) else "Belirtilmemiş / 0 ay (Eksik)"
+            budget_str = f"{budget:,.2f} TL" if budget is not None else "Belirtilmemiş"
+            lines.append(
+                f"• Başvuru Özeti ({p_code}): Talep Edilen Bütçe: {budget_str} | Talep Edilen Süre: {dur_str} | "
+                f"Islak İmza: {'Mevcut' if submission_context.wet_signature_present else 'Eksik'}"
+            )
+            if submission_context.budget_line_items:
+                low_proforma = [
+                    f"{it.name} ({it.total_tl:,.0f} TL - Proforma: {it.proforma_count or 0} adet)"
+                    for it in submission_context.budget_line_items
+                    if it.total_tl >= 25000 and (it.proforma_count or 0) < 3
+                ]
+                if low_proforma:
+                    lines.append(f"• Proforma Eksikliği Tespit Edilen Kalemler: {', '.join(low_proforma)}")
+            lines.append("")
 
         if not relevant_chunks:
             lines.append(
@@ -353,13 +373,18 @@ class GroundedSynthesizer:
             primary_chunk = relevant_chunks[0]
             art_ref = primary_chunk.get("regulation_article_ref", "")
             doc_name = primary_chunk.get("regulation_doc_name", "")
-            raw_text = primary_chunk.get("raw_text", "")
+            raw_text = (
+                primary_chunk.get("raw_text")
+                or primary_chunk.get("verbatim_quote")
+                or primary_chunk.get("content_text")
+                or ""
+            )
 
-            lines.append(f"**Mevzuat Hükmü ({doc_name} - {art_ref}):**")
+            lines.append(f"İlgili Mevzuat Hükmü ({doc_name} - {art_ref}):")
             lines.append(f"{raw_text}\n")
             lines.append(
                 "Bu hüküm doğrultusunda başvurunuzdaki bütçe, süre, proforma ve belge şartlarının yukarıda belirtilen "
-                "kriterlere uygun olarak BAP Otomasyon Sistemi (`bap2.mersin.edu.tr`) üzerinden düzenlenmesi gerekmektedir."
+                "kriterlere uygun olarak BAP Otomasyon Sistemi üzerinden düzenlenmesi gerekmektedir."
             )
 
         answer_tr = "\n".join(lines)

@@ -28,11 +28,11 @@ export const NewSubmissionPage: React.FC = () => {
   // Step 1: Form Fields
   const [submissionType, setSubmissionType] = useState<SubmissionType>('NEW_PROJECT');
   const [projectCode, setProjectCode] = useState('TP2');
-  const [title, setTitle] = useState('Mersin Körfezi Mikroplastik Analizi ve Biyoakümülasyon Çalışması');
-  const [applicantName, setApplicantName] = useState('Doç. Dr. Selim Aktaş');
+  const [title, setTitle] = useState('');
+  const [applicantName, setApplicantName] = useState('');
   const [applicantTitle, setApplicantTitle] = useState('Doç. Dr.');
-  const [department, setDepartment] = useState('Su Ürünleri Fakültesi / Deniz Biyolojisi AD');
-  const [externalBap2Id, setExternalBap2Id] = useState('BAP2-99824');
+  const [department, setDepartment] = useState('');
+  const [externalBap2Id, setExternalBap2Id] = useState('');
 
   // Step 2: Files & Raw Text
   const [uploadMode, setUploadMode] = useState<'files' | 'raw_text'>('files');
@@ -114,14 +114,16 @@ export const NewSubmissionPage: React.FC = () => {
     setLoading(true);
     try {
       // 1. Create base submission
+      const finalTitle = title.trim() || 'Belgeden Otomatik Çıkarılacak';
+      const finalApplicant = applicantName.trim() || 'Belgeden Otomatik Çıkarılacak';
       const sub = await submissionsApi.createSubmission({
         submission_type: submissionType,
         project_code: projectCode || null,
-        title,
-        applicant_name: applicantName,
+        title: finalTitle,
+        applicant_name: finalApplicant,
         applicant_title: applicantTitle,
-        department,
-        external_bap2_id: externalBap2Id || null,
+        department: department.trim() || null,
+        external_bap2_id: externalBap2Id.trim() || null,
       });
 
       // 2. Prepare upload package
@@ -289,32 +291,31 @@ export const NewSubmissionPage: React.FC = () => {
                 onChange={(e) => setProjectCode(e.target.value)}
                 className="w-full py-2 px-3 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-meu-500 focus:border-meu-500 bg-white font-mono"
               >
-                <option value="TP1">TP1 — Lisans Öğrencisi Araştırma Projesi (30.000 TL)</option>
-                <option value="TP2">TP2 — Yüksek Lisans Tez Projeleri (125.000 TL)</option>
-                <option value="TP3">TP3 — Doktora / Uzmanlık Projeleri (210.000 TL)</option>
-                <option value="AP1">AP1 — Kariyer Başlangıç Araştırma Projeleri (250.000 TL)</option>
-                <option value="AP2">AP2 — Bireysel Araştırma Projeleri (300.000 TL)</option>
-                <option value="AP3">AP3 — Öncelikli Alan Araştırma Projeleri (500.000 TL)</option>
-                <option value="AP4">AP4 — Kapsamlı Araştırma Projeleri (800.000 TL)</option>
-                <option value="AP7">AP7 — Hızlı Destek Araştırma Projeleri (100.000 TL)</option>
-                <option value="AP9">AP9 — Yarışmalara Katılım Desteği (50.000 TL)</option>
-                <option value="WOS_Q1_TOP10">WOS_Q1_TOP10 — WoS Q1 %10 Dilim (120.000 TL)</option>
-                <option value="WOS_Q1_OTHER">WOS_Q1_OTHER — WoS Q1 Diğer (80.000 TL)</option>
-                <option value="WOS_Q2">WOS_Q2 — WoS Q2 Tam Metin Makale (60.000 TL)</option>
+                <option value="TP1">TP1: Lisans Öğrencisi Araştırma Projesi (30.000 TL)</option>
+                <option value="TP2">TP2: Yüksek Lisans Tez Projeleri (125.000 TL)</option>
+                <option value="TP3">TP3: Doktora / Uzmanlık Projeleri (210.000 TL)</option>
+                <option value="AP1">AP1: Kariyer Başlangıç Araştırma Projeleri (250.000 TL)</option>
+                <option value="AP2">AP2: Bireysel Araştırma Projeleri (300.000 TL)</option>
+                <option value="AP3">AP3: Öncelikli Alan Araştırma Projeleri (500.000 TL)</option>
+                <option value="AP4">AP4: Kapsamlı Araştırma Projeleri (800.000 TL)</option>
+                <option value="AP7">AP7: Hızlı Destek Araştırma Projeleri (100.000 TL)</option>
+                <option value="AP9">AP9: Yarışmalara Katılım Desteği (5.000 TL)</option>
+                <option value="WOS_Q1_TOP10">WOS_Q1_TOP10: WoS Q1 %10 Dilim (120.000 TL)</option>
+                <option value="WOS_Q1_OTHER">WOS_Q1_OTHER: WoS Q1 Diğer (80.000 TL)</option>
+                <option value="WOS_Q2">WOS_Q2: WoS Q2 Tam Metin Makale (60.000 TL)</option>
               </select>
             </div>
 
             {/* Applicant Name */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Yürütücü Adı Soyadı <span className="text-rose-500">*</span>
+                Yürütücü Adı Soyadı <span className="text-slate-400 font-normal">(Boş bırakılırsa OCR çıkarır)</span>
               </label>
               <input
                 type="text"
-                required
                 value={applicantName}
                 onChange={(e) => setApplicantName(e.target.value)}
-                placeholder="Ör. Doç. Dr. Selim Aktaş"
+                placeholder="Ör. Doç. Dr. Selim Aktaş veya boş bırakın"
                 className="w-full py-2 px-3 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-meu-500 focus:border-meu-500 bg-white"
               />
             </div>
@@ -354,14 +355,13 @@ export const NewSubmissionPage: React.FC = () => {
             {/* Title */}
             <div className="sm:col-span-2">
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Proje / Talep Başlığı <span className="text-rose-500">*</span>
+                Proje / Talep Başlığı <span className="text-slate-400 font-normal">(Boş bırakılırsa OCR çıkarır)</span>
               </label>
               <input
                 type="text"
-                required
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Ör. Akdeniz Kıyılarında Mikroplastik Kirliliği Analizi"
+                placeholder="Ör. Akdeniz Kıyılarında Mikroplastik Analizi veya boş bırakın"
                 className="w-full py-2 px-3 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-meu-500 focus:border-meu-500 bg-white font-medium"
               />
             </div>

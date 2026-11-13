@@ -4,6 +4,8 @@
 # ==============================================================================
 
 SHELL := /bin/bash
+-include .env
+export
 export JAVA_HOME ?= /opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
 export PATH := $(JAVA_HOME)/bin:/opt/homebrew/bin:$(PATH)
 SPRING_PROFILES_ACTIVE ?= local

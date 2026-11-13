@@ -344,8 +344,25 @@ public class EvaluationService {
             ));
         }
 
-        // Duration cap check (max 36 months)
-        if (sub.requestedDurationMonths() != null && sub.requestedDurationMonths() > 36) {
+        // Duration cap check (missing/0 or max 36 months)
+        if (sub.requestedDurationMonths() == null || sub.requestedDurationMonths() <= 0) {
+            list.add(new FindingDto(
+                    UUID.randomUUID(),
+                    FindingSource.DETERMINISTIC_RULE,
+                    "RULE_DURATION_MAX_36M",
+                    RuleCategory.DURATION,
+                    FindingSeverity.MISSING_DOCUMENT,
+                    "Talep Edilen Proje Süresi Eksik / Belirtilmemiş",
+                    "Başvuru formunda geçerli bir proje süresi (ay) tespit edilemedi.",
+                    "23.01.2025 Tarihli Mersin Üniversitesi BAP Yönergesi",
+                    "Madde 10 (Proje Süresi)",
+                    "Projelerin başlangıç ve bitiş tarihleri ile talep edilen toplam süre formda açıkça belirtilmelidir.",
+                    "1 - 36 ay",
+                    sub.requestedDurationMonths() != null && sub.requestedDurationMonths() == 0 ? "0 ay (Eksik)" : "Belirtilmemiş",
+                    null,
+                    null
+            ));
+        } else if (sub.requestedDurationMonths() > 36) {
             list.add(new FindingDto(
                     UUID.randomUUID(),
                     FindingSource.DETERMINISTIC_RULE,

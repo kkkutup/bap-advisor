@@ -1048,6 +1048,7 @@ components:
         ocr_confidence: { type: number, nullable: true }
         has_signature_detected: { type: boolean, nullable: true }
         storage_path: { type: string }
+        parsed_markdown: { type: string, nullable: true }
 
     SubmissionVersionResponse:
       type: object

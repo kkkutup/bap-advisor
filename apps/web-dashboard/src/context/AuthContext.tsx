@@ -1,6 +1,14 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { UserProfileResponse, UserRole } from '../types/api';
 import { authApi } from '../api/authApi';
+import { transparentRelogin } from '../api/client';
+
+export const ROLE_DEFAULT_PASSWORDS: Record<string, string> = {
+  'memur@mersin.edu.tr': 'Memur123!',
+  'koordinator@mersin.edu.tr': 'Koord123!',
+  'admin@mersin.edu.tr': 'Admin123!',
+  'kurul@mersin.edu.tr': 'Kurul123!',
+};
 
 interface AuthContextType {
   user: UserProfileResponse | null;
@@ -20,11 +28,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const token = localStorage.getItem('bap_access_token');
+
+    // CRITICAL: Auto-heal current open sessions if holding a stale mock token
+    if (token && token.startsWith('mock-jwt-token-')) {
+      localStorage.removeItem('bap_access_token');
+      transparentRelogin()
+        .then(() => authApi.getCurrentUser())
+        .then((u) => setUser(u))
+        .catch(() => setUser(null))
+        .finally(() => setIsLoading(false));
+      return;
+    }
+
     if (token) {
       authApi
         .getCurrentUser()
         .then((u) => setUser(u))
-        .catch(() => {
+        .catch(async () => {
+          // If token was rejected (401), attempt transparent relogin
+          const freshToken = await transparentRelogin();
+          if (freshToken) {
+            try {
+              const u = await authApi.getCurrentUser();
+              setUser(u);
+              return;
+            } catch {}
+          }
           authApi.logout();
           setUser(null);
         })
@@ -40,7 +69,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const quickLogin = async (email: string) => {
-    await login(email, 'BapAdvisor2026!');
+    const password = ROLE_DEFAULT_PASSWORDS[email] || 'Memur123!';
+    await login(email, password);
   };
 
   const logout = () => {

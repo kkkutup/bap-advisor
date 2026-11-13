@@ -1,4 +1,4 @@
-import { apiRequest } from './client';
+import { apiRequest, isForceOffline } from './client';
 import { AuthTokenResponse, UserProfileResponse } from '../types/api';
 import { MOCK_USERS } from './mockData';
 
@@ -13,7 +13,11 @@ export const authApi = {
       localStorage.setItem('bap_user', JSON.stringify(res.user));
       return res;
     } catch (err) {
-      // Fallback mock login if server is offline or in demo mode
+      // ONLY fall back to mock data if offline mode is explicitly forced by user
+      if (!isForceOffline()) {
+        throw err;
+      }
+
       const mockUser = MOCK_USERS[email] || {
         id: '99999999-9999-9999-9999-999999999999',
         email,
@@ -39,7 +43,10 @@ export const authApi = {
   async getCurrentUser(): Promise<UserProfileResponse> {
     try {
       return await apiRequest<UserProfileResponse>('/auth/me');
-    } catch {
+    } catch (err) {
+      if (!isForceOffline()) {
+        throw err;
+      }
       const stored = localStorage.getItem('bap_user');
       if (stored) {
         return JSON.parse(stored);

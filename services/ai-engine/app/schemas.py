@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field, model_validator
 class SubmissionType(str, Enum):
     NEW_PROJECT = "NEW_PROJECT"
     OPEN_ACCESS = "OPEN_ACCESS"
+    OPEN_ACCESS_SUPPORT = "OPEN_ACCESS_SUPPORT"
     ADDITIONAL_BUDGET = "ADDITIONAL_BUDGET"
     ADDITIONAL_TIME = "ADDITIONAL_TIME"
     PROCUREMENT_ADVANCE = "PROCUREMENT_ADVANCE"
@@ -23,6 +24,7 @@ class DocumentRole(str, Enum):
     TECHNICAL_SPEC = "TECHNICAL_SPEC"
     ETHICS_APPROVAL = "ETHICS_APPROVAL"
     THESIS_PROPOSAL = "THESIS_PROPOSAL"
+    THESIS_PROPOSAL_APPROVAL = "THESIS_PROPOSAL_APPROVAL"
     SIGNED_PETITION = "SIGNED_PETITION"
     PUBLICATION_PROOF = "PUBLICATION_PROOF"
     OTHER = "OTHER"
@@ -31,9 +33,12 @@ class DocumentRole(str, Enum):
 class BudgetCategory(str, Enum):
     CONSUMABLE = "CONSUMABLE"
     EQUIPMENT = "EQUIPMENT"
+    SERVICE = "SERVICE"
     SERVICE_PURCHASE = "SERVICE_PURCHASE"
+    SERVICE_PROCUREMENT = "SERVICE_PROCUREMENT"
     TRAVEL = "TRAVEL"
     PUBLICATION = "PUBLICATION"
+    OPEN_ACCESS_FEE = "OPEN_ACCESS_FEE"
     OTHER = "OTHER"
 
 
@@ -84,7 +89,7 @@ class BudgetLineItem(BaseModel):
 
 
 class StructuredSubmissionData(BaseModel):
-    detected_submission_type: SubmissionType
+    detected_submission_type: SubmissionType = SubmissionType.NEW_PROJECT
     detected_project_code: Optional[str] = None
     applicant_name: Optional[str] = None
     applicant_title: Optional[str] = None
@@ -100,6 +105,22 @@ class StructuredSubmissionData(BaseModel):
     ethics_required_keywords_detected: bool = False
     detected_attachments: List[DocumentRole] = Field(default_factory=list)
     notes: Optional[str] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_submission_data(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if not data.get("detected_submission_type"):
+                data["detected_submission_type"] = "NEW_PROJECT"
+            if data.get("wet_signature_present") is None:
+                data["wet_signature_present"] = False
+            if data.get("ethics_required_keywords_detected") is None:
+                data["ethics_required_keywords_detected"] = False
+            if data.get("budget_line_items") is None:
+                data["budget_line_items"] = []
+            if data.get("detected_attachments") is None:
+                data["detected_attachments"] = []
+        return data
 
 
 # ------------------------------------------------------------------------------
@@ -251,6 +272,17 @@ class EvaluateResponse(BaseModel):
 class ChatMessage(BaseModel):
     role: Literal["user", "assistant", "system"]
     content: str
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_role(cls, data: Any) -> Any:
+        if isinstance(data, dict) and "role" in data and isinstance(data["role"], str):
+            r = data["role"].strip().lower()
+            if r not in ("user", "assistant", "system"):
+                r = "user"
+            data = dict(data)
+            data["role"] = r
+        return data
 
 
 class QaRequest(BaseModel):

@@ -1,219 +1,174 @@
-# Mersin Üniversitesi BAP Mevzuat Uygunluk ve İdari Ön İnceleme Sistemi (`bap-advisor`)
+# Mersin Üniversitesi BAP Mevzuat Uygunluk ve Ön İnceleme Sistemi
 
-[![Contract First](https://img.shields.io/badge/API_Contract-OpenAPI_3.1-blue.svg)](file:///Users/kutup/Documents/bap-advisor/contracts)
-[![Java 17](https://img.shields.io/badge/Backend-Java_17_Spring_Boot_3.4-brightgreen.svg)](file:///Users/kutup/Documents/bap-advisor/services/core-api)
-[![Python 3.12](https://img.shields.io/badge/AI_Engine-FastAPI_Python_3.12-yellowgreen.svg)](file:///Users/kutup/Documents/bap-advisor/services/ai-engine)
-[![React 18](https://img.shields.io/badge/Frontend-React_18_TypeScript_Vite-61dafb.svg)](file:///Users/kutup/Documents/bap-advisor/apps/web-dashboard)
-[![Test Suite](https://img.shields.io/badge/Tests-100%25_Passing-success.svg)](file:///Users/kutup/Documents/bap-advisor)
+Mersin Üniversitesi Bilimsel Araştırma Projeleri (BAP) Koordinasyon Birimine ulaşan proje başvurularını ve ek talepleri (yeni proje, ek bütçe, ek süre, satın alma/avans, açık erişim yayın desteği) yürürlükteki mevzuata göre ön incelemeden geçiren karar destek sistemidir.
 
-Mersin Üniversitesi Bilimsel Araştırma Projeleri Koordinasyon Birimi (MEÜ BAP) için geliştirilmiş, yüksek hassasiyetli mevzuat uygunluk denetimi, 3 katmanlı hibrit OCR, mevzuata dayalı RAG (Retrieval-Augmented Generation), otomatik BAP iade/onay tutanağı üretimi ve versiyon karşılaştırma (diff) platformudur.
+Sistem yalnızca idari, şekli, belgesel ve mali uygunluk kontrolü yapar. Projenin bilimsel kalitesi, hipotezi veya akademik özgünlüğü hakkında değerlendirme yapmaz; bu yetki tamamen BAP Komisyonuna (Profesör Kurulu) aittir.
 
 ---
 
-## 1. Kesin Alan Kuralı ve Güvenlik Sınırları (Domain Guardrail)
+## Uygulama Ekran Görüntüleri
 
-> [!IMPORTANT]
-> **BİLİMSEL VE AKADEMİK HAKEMLİK YASAĞI**
-> Bu sistem **asla ve hiçbir koşulda** projelerin akademik özgünlüğü, araştırma kalitesi, hipotez geçerliliği veya metodoloji yeterliliği hakkında hüküm vermez.
-> 
-> - Sistemin yetki alanı **yalnızca idari, şekli, belgesel ve mali** MEÜ BAP mevzuat gereksinimlerini denetlemekle sınırlıdır.
-> - Değerlendirme gerektiren akademik/içeriksel konular otomatik olarak `AMBIGUOUS_COMMISSION` severity seviyesiyle işaretlenir ve `COMMISSION_REVIEW` statüsünde MEÜ BAP Komisyonuna (Profesörler Kurulu) havale edilir.
-> - RAG ve kural motoru tarafından üretilen istisnasız **her bulgu**, resmi mevzuat adı (`regulation_doc_name`) ve ilgili madde numarasını (`regulation_article_ref`) içermek zorundadır.
+### 1. Kurumsal Giriş Ekranı
+![Kurumsal Giriş Ekranı](docs/screenshots/01-login.png)
 
----
+### 2. Ön İnceleme ve Süreç Gösterge Paneli
+![Özet Gösterge Paneli](docs/screenshots/02-dashboard.png)
 
-## 2. Sistem Mimarisi
+### 3. Başvuru Kuyruğu ve Arşiv
+![Başvuru Kuyruğu ve Arşiv](docs/screenshots/03-submissions.png)
 
-Sistem, sözleşme öncelikli (Contract-First) prensiple tasarlanmış 3 ana bileşenden oluşur:
+### 4. Yeni Başvuru Girişi ve Belge Yükleme Sihirbazı
+![Yeni Başvuru Girişi](docs/screenshots/04-new-submission.png)
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                       React 18 Web Dashboard (:5173)                        │
-│   (Vite + Tailwind CSS + TanStack Query + Split-Screen Review + Chatbot)    │
-└──────────────────────────────────────┬──────────────────────────────────────┘
-                                       │ Live REST / OpenAPI (Snake_Case)
-                                       ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                     Spring Boot 3 Core API (:8080)                          │
-│  - JWT RBAC & Oturum Yönetimi (ADMIN, COORDINATOR, OFFICER, COMMISSION)     │
-│  - Deterministik Kural Motoru (Tavan Bütçeler, Süreler, Islak İmza, Ekler)  │
-│  - MEÜ BAP Resmi Tutanak İhracı (PDF & DOCX Şablon Üretimi)                │
-│  - BAP2 Entegrasyon Webhook Katmanı                                         │
-│  - PostgreSQL 16 (core şeması) / H2 Local Memory DB                         │
-└──────────────────────────────────────┬──────────────────────────────────────┘
-                                       │ Internal REST (X-Internal-Service-Token)
-                                       ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                     Python FastAPI AI Engine (:8001)                        │
-│  - 3-Katmanlı Hibrit OCR (Native Digital PDF -> RapidOCR -> Vision LLM)     │
-│  - Lokal BAAI/bge-m3 Embedding & Hukuki Madde Segmentasyonu                 │
-│  - Mevzuat RAG & Etkileşimli Soru-Cevap (Citations Destekli)                │
-│  - Çift Modlu LLM Ağ Geçidi (NanoGPT API test <-> %100 Lokal Ollama/vLLM)  │
-│  - Fiziksel Airgap Guard (Üretimde dış ağa veri çıkışı engeli)             │
-│  - PostgreSQL 16 pgvector (ai_rag şeması)                                   │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+### 5. İnsan Doğrulamalı OCR Çıkarım Kontrolü
+![OCR Çıkarım Kontrolü](docs/screenshots/05-ocr-review.png)
 
-### Veritabanı İzolasyonu
-- **Tek PostgreSQL 16 Veritabanı**: Spring Boot Flyway yalnızca `core` şemasına yazar. Python FastAPI Alembic yalnızca `ai_rag` şemasına yazar.
-- Servisler asla birbirlerinin veritabanı tablolarına doğrudan SQL ile erişmez; iç HTTP API üzerinden haberleşir.
+### 6. Madde Atıflı Denetim Raporu, Sevk Kilidi ve Revizyon Bildirimi
+![Madde Atıflı Denetim Raporu](docs/screenshots/06-audit-report.png)
+
+### 7. Mevzuat ve Dosya Soru-Cevap (RAG Q&A) Çekmecesi
+![Mevzuat ve Dosya Soru-Cevap](docs/screenshots/07-revision-and-qa.png)
+
+### 8. Koordinatör Mevzuat ve 2026 Yılı Bütçe Limitleri Yönetimi
+![Mevzuat ve 2026 Limitleri](docs/screenshots/08-regulations-limits.png)
 
 ---
 
-## 3. Hızlı Başlangıç (Geliştirici Makinesinde Docker'sız)
+## Docker ile Kurulum ve Çalıştırma
 
-macOS üzerinde yerel geliştirme için Docker kurulu olmasına gerek yoktur (`SPRING_PROFILES_ACTIVE=local` ile Spring Boot H2 in-memory veritabanını kullanır).
+Tüm servisler (`postgres`, `ai-engine`, `core-api`, `web-dashboard`) Docker Compose ile tek komutla ayağa kalkacak şekilde yapılandırılmıştır.
 
 ### Gereksinimler
-- **Java 17**: Homebrew OpenJDK 17
-- **Python 3.12**: `/opt/homebrew/bin/uv`
-- **Node.js**: `v20+` / `npm`
+- Docker Engine 24+ ve Docker Compose v2
+- En az 4 GB kullanılabilir RAM (`BAAI/bge-m3` lokal vektör modeli için)
 
-### Ortam Kurulumu ve Başlatma
+### 1. Ortam Değişkenlerini Hazırlayın
 
-1. **Ortam değişkenlerini hazırlayın:**
-   ```bash
-   cp .env.example .env
-   # Geliştirme/test aşamasında harici LLM için NANOGPT_API_KEY değerini .env dosyasına girebilirsiniz.
-   ```
+Proje kök dizinindeki örnek yapılandırma dosyasını `.env` olarak kopyalayın:
 
-2. **Üç servisi ayrı terminallerde başlatın:**
+```bash
+cp .env.example .env
+```
 
-   - **Terminal 1 — AI Engine (:8001):**
-     ```bash
-     make run-ai
-     # Alternatif:
-     # cd services/ai-engine && uv run uvicorn app.main:app --host 127.0.0.1 --port 8001 --reload
-     ```
+`.env` dosyasında yer alan temel ayarlar:
 
-   - **Terminal 2 — Core API (:8080):**
-     ```bash
-     make run-core
-     # Alternatif (Local H2 in-memory profil ile):
-     # cd services/core-api && ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
-     ```
+| Değişken | Varsayılan Değer | Açıklama |
+| :--- | :--- | :--- |
+| `POSTGRES_DB` | `bap_advisor` | PostgreSQL veritabanı adı (`core` ve `ai_rag` şemalarını barındırır) |
+| `POSTGRES_USER` | `bap_user` | Veritabanı kullanıcı adı |
+| `POSTGRES_PASSWORD` | `bap_password_change_me` | Veritabanı şifresi |
+| `LLM_PROVIDER` | `nanogpt` | Aktif LLM sağlayıcısı (`nanogpt`, `ollama` veya `vllm`) |
+| `NANOGPT_API_KEY` | *(boş)* | Harici API modu kullanılacaksa NanoGPT API anahtarı |
+| `OLLAMA_BASE_URL` | `http://host.docker.internal:11434/v1` | Lokal Ollama sunucu adresi |
+| `OLLAMA_MODEL` | `qwen2.5:14b-instruct` | Lokal Ollama model adı |
+| `AIRGAPPED_MODE` | `false` | `true` yapıldığında dış ağa yapılan tüm LLM istekleri engellenir |
+| `EMBEDDING_MODEL` | `BAAI/bge-m3` | Lokal çok dilli embedding modeli (1024 boyutlu) |
 
-   - **Terminal 3 — Web Dashboard (:5173):**
-     ```bash
-     make run-web
-     # Alternatif:
-     # cd apps/web-dashboard && npm run dev
-     ```
-
-3. **Tarayıcıdan açın:**
-   [http://localhost:5173](http://localhost:5173)
-
----
-
-## 4. Docker Compose ile Başlatma (Üretim Ortamı)
-
-Tüm yığını (PostgreSQL 16 + pgvector, Spring Boot Core API, FastAPI AI Engine ve Nginx Web Dashboard) tek komutla ayağa kaldırmak için:
+### 2. Konteynerleri Derleyin ve Başlatın
 
 ```bash
 docker compose up --build -d
 ```
 
-Servis Durumları:
-- Web Dashboard: `http://localhost:3000` veya `http://localhost:80`
-- Core API: `http://localhost:8080`
-- AI Engine: `http://localhost:8001`
-- PostgreSQL: `localhost:5432` (`bap_advisor`)
+İlk çalıştırmada `ai-engine` servisi `BAAI/bge-m3` model ağırlıklarını indirip `huggingface_cache` Docker volume'una kaydeder; sonraki başlatmalarda model önbellekten yüklenir. `data/regulations` ve `data/uploads` dizinleri konteynerlere doğrudan bağlandığı için mevcut mevzuat indeksleri ve yüklenen belgeler korunur.
 
----
-
-## 5. Canlı Uçtan Uca Entegrasyon Testi (E2E Smoke Test)
-
-Sistemin tüm servislerinin canlı HTTP çağrılarıyla birbirine bağlandığını ve gerçek MEÜ başvuru dosyalarıyla çalıştığını doğrulamak için:
+### 3. Servis Durumunu Kontrol Edin
 
 ```bash
-make verify-e2e
+docker compose ps
 ```
 
-Bu komut Python ile yazılmış `scripts/verify_e2e_live.py` betiğini çalıştırır ve şu 8 adımı test eder:
-1. **Kimlik Doğrulama & JWT RBAC:** Koordinatör ve Memur kullanıcılarıyla giriş, `/auth/me` profil teyidi.
-2. **Mevzuat İndeksleme & 2026 MEÜ Limitleri:** 8 resmi MEÜ mevzuat metninin RAG motoruna indekslenmesi ve 2026 yılı bütçe tavanlarının (TP1: 30k .. AP4: 800k, Q1: 120k) doğrulanması.
-3. **Gerçek TP2 Başvurusu (v1 - Tavan Aşımı):** `01_tp2_basvuru_formu.pdf` ve `02_butce_tablosu.xlsx` dosyalarının hibrit OCR ile taranması, 142.000,00 TL bütçenin çıkarılması, `RULE_BUDGET_CAP` (125k limit aşımı) ve `MISSING_DOCUMENT` (Tez Önerisi) ihlallerinin tespiti ve Türkçe iade taslağının oluşturulması.
-4. **Düzeltilmiş Başvuru (v2) & Versiyon Karşılaştırma (Diff):** Bütçenin 118.500,00 TL'ye düşürülüp tez belgesinin eklenmesi, diff çağrısıyla `-23.500,00 TL` farkın ve çözülen maddelerin doğrulanması.
-5. **Taranmış Resim PDF (Tier-2 RapidOCR):** İmzası bulunmayan taranmış dilekçede `wet_signature_present=false` tespiti ve `RULE_WET_SIGNATURE` ihlalinin üretilmesi.
-6. **Mevzuata Dayalı Etkileşimli Soru-Cevap (Q&A):** Proje bağlamında sorulan soruya MEÜ BAP Yönergesi ilgili madde alıntılarıyla Türkçe yanıt verilmesi.
-7. **Resmi MEÜ BAP Ön İnceleme Tutanağı İhracı:** `%PDF-` başlıklı PDF ve `PK` zip başlıklı DOCX resmi tutanak belgelerinin indirilmesi.
-8. **Yönetici LLM Sağlayıcı Değişimi & Airgap Kilidi:** Çalışma anında canlı olarak NanoGPT'den `%100 Lokal Ollama`ya (`AIRGAPPED_MODE=true`) geçilmesi ve geri dönülmesi.
+Çalışan servislerin erişim adresleri:
 
----
+- **Web Arayüzü (`web-dashboard`):** http://localhost:3000
+- **Core API (`core-api`):** http://localhost:8080/api/v1/health
+- **AI Engine (`ai-engine`):** http://localhost:8001/internal/v1/health
+- **PostgreSQL 16 (`pgvector`):** `localhost:5432`
 
-## 6. Varsayılan Tanımlı Kullanıcı Hesapları
+### 4. Varsayılan Kullanıcı Hesapları
 
-Veritabanı başlatıldığında test ve kullanım için aşağıdaki roller otomatik oluşturulur:
+Sistem ilk kez ayağa kalktığında aşağıdaki kullanıcı profillerini otomatik oluşturur:
 
-| E-Posta | Şifre | Rol | Yetkiler |
+| Rol | E-Posta | Şifre | Yetki Kapsamı |
 | :--- | :--- | :--- | :--- |
-| `admin@mersin.edu.tr` | `Admin123!` | `ADMIN` | Sistem ayarları, kullanıcı yönetimi, LLM motoru & airgap yapılandırması |
-| `koordinator@mersin.edu.tr` | `Koord123!` | `COORDINATOR` | Tüm başvuruları inceleme, tutanak onay/ihraç, mevzuat & tavan yönetimi |
-| `memur@mersin.edu.tr` | `Memur123!` | `OFFICER` | Başvuru yükleme, OCR çalıştırma, mevzuat ön inceleme, iade taslağı düzenleme |
-| `kurul@mersin.edu.tr` | `Kurul123!` | `COMMISSION_VIEWER` | Salt okunur kurul ekranı, hakemlik öncesi idari tutanak izleme |
+| **BAP Memuru** | `memur@mersin.edu.tr` | `Memur123!` | Başvuru yükleme, OCR kontrolü, denetim çalıştırma, revizyon raporu dışa aktarma ve gönderme |
+| **BAP Koordinatörü** | `koordinator@mersin.edu.tr` | `Koord123!` | Memur yetkileri + yıllık bütçe limitlerini ve mevzuat PDF'lerini güncelleme |
+| **Sistem Yöneticisi** | `admin@mersin.edu.tr` | `Admin123!` | Tüm sistem ve LLM sağlayıcı (`nanogpt` / `ollama` / `vllm`) ayarları |
+| **Komisyon Üyesi** | `kurul@mersin.edu.tr` | `Kurul123!` | Profesör Kuruluna sevk edilen başvuruların ön inceleme raporlarını görüntüleme |
 
----
-
-## 7. Çift Modlu LLM ve %100 Yerel (Airgapped) Üretim Modu
-
-`bap-advisor`, üniversite içi veri gizliliğini korumak amacıyla iki aşamalı çalışmayı destekler:
-
-### Aşama 1: Geliştirme & Test (NanoGPT API)
-`.env` dosyasında:
-```env
-LLM_PROVIDER=nanogpt
-NANOGPT_API_KEY=your_nanogpt_api_key_here
-NANOGPT_MODEL=chatgpt-4o-latest
-AIRGAPPED_MODE=false
-```
-*Not: Embedding işlemi (`BAAI/bge-m3`) her zaman sunucuda yerel olarak çalıştırılır; harici API'ye metin embedding verisi gönderilmez.*
-
-### Aşama 2: Üretim / %100 Yerel & Kapalı Ağ (Ollama / vLLM)
-Üniversite sunucusunda dış internet bağlantısı tamamen kapatıldığında:
-```env
-LLM_PROVIDER=ollama
-OLLAMA_BASE_URL=http://localhost:11434/v1
-OLLAMA_MODEL=qwen2.5:14b-instruct
-AIRGAPPED_MODE=true
-```
-- `AIRGAPPED_MODE=true` etkinleştirildiğinde `app.llm.airgap_guard.AirgapGuard` devreye girer ve harici adreslere yapılacak tüm ağ çıkışlarını `AirgapViolationError` ile fiziksel olarak engeller.
-- Bu yapılandırma Dashboard üzerindeki **Sağlayıcı Yapılandırması** sayfasından (`/admin/providers`) çalışma anında da değiştirilebilir.
-
----
-
-## 8. MEÜ BAP 2026 Destek Tavanları ve Mevzuat Yönetimi
-
-### 2026 Yılı Tavan Bütçeleri (`contracts/seed-data/meu_2026_limits.json`)
-Sistemde yer alan bazı tavan tutarlar:
-- **TP1 (Yüksek Lisans Tez Projesi):** 30.000,00 TL
-- **TP2 (Doktora Tez Projesi):** 125.000,00 TL
-- **TP3 (Tıpta/Diş Hekimliğinde Uzmanlık):** 210.000,00 TL
-- **AP1 (Kapsamlı Araştırma Projesi):** 250.000,00 TL
-- **AP2 (Öncelikli Alan Araştırma Projesi):** 300.000,00 TL
-- **AP3 (Güdümlü Araştırma Projesi):** 500.000,00 TL
-- **AP4 (Çok Disiplinli Stratejik Araştırma):** 800.000,00 TL
-- **WOS Q1 Top %10 Yayın Teşvik Desteği:** 120.000,00 TL
-
-### Yeni Mevzuat ve Kılavuz Yükleme
-Mersin Üniversitesi senatosunca yeni bir mevzuat, yönerge veya uygulama kılavuzu yayınlandığında:
-1. **Web Dashboard Üzerinden:** Koordinatör hesabıyla `Mevzuat Belgeleri` menüsünden yeni PDF/Markdown belgesini yükleyin.
-2. **Komut Satırından:**
-   ```bash
-   make fetch-regulations
-   ```
-   Belge otomatik olarak `data/regulations/` dizinine kaydedilir, `chunker.py` tarafından hukuki maddelerine (`MADDE 1`, `MADDE 2`...) bölünür ve `bge-m3` ile vektör indeksine alınır.
-
----
-
-## 9. Test Paketleri ve Kalite Güvencesi
-
-Tüm test paketlerini tek seferde yürütmek için:
+### 5. Servisleri Durdurma
 
 ```bash
-make test-all
+# Konteynerleri durdur (veritabanı verileri korunur)
+docker compose down
+
+# Konteynerleri ve veritabanı volume'unu sıfırlayarak kaldır
+docker compose down -v
 ```
 
-- **`make test-core`**: Spring Boot Controller, Service, Rule Engine, Export ve Auth testleri (86 test - %100 Başarılı).
-- **`make test-ai`**: FastAPI Hybrid OCR, PDF/XLSX Parser, RAG, Airgap Guard ve Gateway testleri (65 test - %100 Başarılı).
-- **`make test-web`**: TypeScript derlemesi (`tsc`) ve Vite üretim derlemesi (0 hata).
-- **`make validate-contracts`**: OpenAPI 3.1 YAML dosyaları ve JSON şemalarının doğrulanması.
+---
+
+## Sistem Mimarisi ve Bileşenler
+
+Proje dört ana bileşenden oluşur:
+
+1. **`apps/web-dashboard` (React 18 + TypeScript + Vite + Nginx):**
+   BAP memurları, koordinatör ve komisyon üyeleri için hazırlanan web arayüzü. Docker ortamında Nginx üzerinde çalışır ve `/api/` isteklerini doğrudan `core-api` konteynerine yönlendirir.
+2. **`services/core-api` (Java 17 + Spring Boot 3.3):**
+   JWT kimlik doğrulaması, başvuru ve versiyon yaşam döngüsü, deterministik sayısal kural motoru, revizyon kilidi ve resmi PDF/DOCX rapor üretimi (`OpenPDF` ve `Apache POI`) işlemlerini yürütür. Verilerini PostgreSQL `core` şemasında tutar.
+3. **`services/ai-engine` (Python 3.12 + FastAPI):**
+   Çoklu belge ayrıştırma (`PDF`, `DOCX`, `XLSX`, `ZIP`, görsel OCR), ıslak imza/kaşe tespiti, madde bazlı mevzuat parçalama, `BAAI/bge-m3` hibrit vektör arama (yoğun vektör + BM25 + RRF) ve çift modlu LLM ağ geçidi görevlerini üstlenir. Verilerini PostgreSQL `ai_rag` şemasında ve lokal indeks yedeklerinde tutar.
+4. **`postgres` (PostgreSQL 16 + `pgvector`):**
+   `infra/postgres/init-db.sql` betiği ile `uuid-ossp` ve `vector` eklentilerini etkinleştirir; `core` ve `ai_rag` şemalarını birbirinden izole eder.
+
+---
+
+## Temel Denetim Kuralları ve İş Akışı
+
+- **Deterministik Sayısal Kontroller (Java):**
+  - **2026 Bütçe Tavanları:** `TP1` (30.000 TL), `TP2` (125.000 TL), `TP3` (210.000 TL), `AP1` (250.000 TL), `AP2` (300.000 TL), `AP3` (500.000 TL), `AP4` (800.000 TL), `AP7` (100.000 TL), `AP9` (5.000 TL).
+  - **Açık Erişim (APC) Tavanları:** `WoS Q1 İlk %10` (120.000 TL), `WoS Q1 Diğer` (80.000 TL), `WoS Q2` (60.000 TL); `Q3`/`Q4` başvuruları reddedilir.
+  - **Proje Süresi:** Tez dışı projelerde ek süre dahil toplam süre 36 ayı, yüksek lisans tez projelerinde (`TP2`) 24 ayı aşamaz. Talep edilen sürenin `0 ay` veya boş bırakılması durumunda bulgu **Eksik Belge** (`MISSING_DOCUMENT`) olarak işaretlenir.
+  - **Ek Bütçe Sınırı:** Talep edilen ek bütçe, mevcut onaylı bütçenin %50'sini ve ilgili proje türünün 2026 yılı tavanını geçemez.
+  - **Proforma ve Teknik Şartname:** 25.000 TL üzeri alımlarda en az 3 proforma fatura, 100.000 TL üzeri teçhizat alımlarında teknik şartname zorunludur.
+- **Revizyon ve Kurul Sevk Kilidi:**
+  - Hakkında revizyon (`REVISION_REQUESTED`) istenen bir başvuru, yürütücü yeni versiyon (`v2`) yükleyip tekrar denetimden geçmeden Profesör Kuruluna (`COMMISSION_REFERRED`) sevk edilemez.
+  - Denetim raporu ekranından resmi antetli **Revizyon Raporu** PDF veya DOCX formatında dışa aktarılabilir ve yürütücüye iade bildirimi olarak gönderilebilir.
+- **Çok Turlu Mevzuat ve Dosya Soru-Cevap (Q&A):**
+  - Denetim raporu içindeki soru-cevap çekmecesi, hem yürürlükteki MEÜ BAP mevzuat maddelerini hem de başvuruya yüklenen dosyanın OCR metnini ve geçmiş konuşma bağlamını kullanarak madde atıflı yanıt üretir.
+
+---
+
+## Docker Olmadan Lokal Geliştirme (Opsiyonel)
+
+Servisleri Docker kullanmadan doğrudan makinenizde çalıştırmak isterseniz:
+
+```bash
+# 1. AI Engine (Python 3.12 + uv)
+cd services/ai-engine
+uv venv --python 3.12
+uv sync
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8001
+
+# 2. Core API (Java 17 + Maven Wrapper, H2/local profili ile)
+cd services/core-api
+./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+
+# 3. Web Dashboard (Node.js + Vite)
+cd apps/web-dashboard
+npm install
+npm run dev
+```
+
+### Testleri Çalıştırma
+
+```bash
+# Python AI Engine birim ve uçtan uca testleri
+cd services/ai-engine && uv run pytest -q
+
+# Java Core API birim ve entegrasyon testleri
+cd services/core-api && ./mvnw test
+
+# Web Dashboard tip kontrolü ve üretim derlemesi
+cd apps/web-dashboard && npm run build
+```

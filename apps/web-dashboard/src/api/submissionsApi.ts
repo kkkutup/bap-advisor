@@ -1,4 +1,4 @@
-import { apiRequest } from './client';
+import { apiRequest, isForceOffline } from './client';
 import {
   SubmissionDetailResponse,
   SubmissionVersionResponse,
@@ -29,7 +29,8 @@ export const submissionsApi = {
       return await apiRequest<PageSubmissionResponse>('/submissions', {
         params: params as Record<string, any>,
       });
-    } catch {
+    } catch (err) {
+      if (!isForceOffline()) throw err;
       // Mock filtering fallback
       let filtered = [...localSubmissions];
 
@@ -70,7 +71,8 @@ export const submissionsApi = {
   async getSubmissionById(id: string): Promise<SubmissionDetailResponse> {
     try {
       return await apiRequest<SubmissionDetailResponse>(`/submissions/${id}`);
-    } catch {
+    } catch (err) {
+      if (!isForceOffline()) throw err;
       const found = localSubmissions.find((s) => s.id === id);
       if (!found) {
         throw new Error(`Başvuru bulunamadı: ${id}`);
@@ -93,7 +95,8 @@ export const submissionsApi = {
         method: 'POST',
         body: JSON.stringify(data),
       });
-    } catch {
+    } catch (err) {
+      if (!isForceOffline()) throw err;
       const newRef = `BAP-2026-${String(Math.floor(Math.random() * 90000) + 10000)}`;
       const newSub: SubmissionDetailResponse = {
         id: `sub-${Date.now()}`,
@@ -180,7 +183,8 @@ export const submissionsApi = {
         method: 'POST',
         body: formData,
       });
-    } catch {
+    } catch (err) {
+      if (!isForceOffline()) throw err;
       // Mock version creation
       const sub = localSubmissions.find((s) => s.id === submissionId);
       const nextVersionNo = (sub?.current_version_no || 1) + 1;
@@ -223,7 +227,8 @@ export const submissionsApi = {
       return await apiRequest<SubmissionVersionResponse>(
         `/submissions/${submissionId}/versions/${versionNo}`
       );
-    } catch {
+    } catch (err) {
+      if (!isForceOffline()) throw err;
       const sub = localSubmissions.find((s) => s.id === submissionId);
       if (sub?.latest_version && sub.latest_version.version_no === versionNo) {
         return sub.latest_version;
@@ -320,7 +325,8 @@ export const submissionsApi = {
           body: JSON.stringify(data),
         }
       );
-    } catch {
+    } catch (err) {
+      if (!isForceOffline()) throw err;
       const sub = localSubmissions.find((s) => s.id === submissionId);
       if (sub && sub.latest_version) {
         sub.latest_version.extracted_metadata = data;
@@ -340,7 +346,8 @@ export const submissionsApi = {
         method: 'PATCH',
         body: JSON.stringify(payload),
       });
-    } catch {
+    } catch (err) {
+      if (!isForceOffline()) throw err;
       const sub = localSubmissions.find((s) => s.id === submissionId);
       if (sub) {
         sub.status = payload.target_status;

@@ -68,7 +68,8 @@ public class SubmissionDocument {
                 this.docRole,
                 this.ocrConfidence,
                 this.hasSignatureDetected,
-                this.storagePath
+                this.storagePath,
+                this.parsedMarkdown
         );
     }
 

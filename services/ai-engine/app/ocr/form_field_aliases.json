@@ -77,20 +77,20 @@
   ],
   "field_patterns": {
     "applicant_name": [
-      "(?:proje yürütücüsü|yürütücü|ad[ıi] soyad[ıi]|araştırmacı|başvuran)\\s*[:：|]?\\s*([A-ZÇĞİÖŞÜa-zçğıöşü\\.\\s]{4,50})",
-      "(?:yürütücünün adı ve soyadı)\\s*[:：|]?\\s*([A-ZÇĞİÖŞÜa-zçğıöşü\\.\\s]{4,50})"
+      "(?:proje yürütücüsü|yürütücü(?:nün)? ad[ıi](?: ve soyadı)?|ad[ıi] soyad[ıi]|araştırmacı(?:nın adı)?|başvuran)\\s*[:：|]?\\s*([A-ZÇĞİÖŞÜa-zçğıöşü\\.\\s]{4,50})",
+      "(?:yürütücünün adı ve soyadı)\\s*[:：|]?\\s*([A-ZÇĞİÖŞÜa-zçğıöşü\\.\\s]{4,50})",
+      "(?:proje yürütücüsü|yürütücü)\\s*[:：|]\\s*([A-ZÇĞİÖŞÜ][a-zçğıöşüI]+(?:\\s+[A-ZÇĞİÖŞÜ][a-zçğıöşüI]+){1,3})"
     ],
     "department": [
-      "(?:bölüm[üu]|anabilim dalı|birim[iı]|görevi / birimi|görevi / birim|fakülte|enstitü|yüksekokul)\\s*[:：|]?\\s*([A-ZÇĞİÖŞÜa-zçğıöşü,\\s]{3,60})",
-      "(?:görev yaptığı birim)\\s*[:：|]?\\s*([A-ZÇĞİÖŞÜa-zçğıöşü,\\s]{3,60})"
+      "(?:görev yaptığı birim|görevi / birimi|görevi / birim|anabilim dalı|bölüm[üu]|birim[iı]|fakülte|enstitü|yüksekokul)\\s*[:：|]?\\s*([A-ZÇĞİÖŞÜa-zçğıöşü,\\s]{3,60})"
     ],
     "project_title": [
-      "(?:proje(?:nin)? ad[ıi]|proje başlığ[ıi]|proje başlığı|başlık)\\s*[:：|]?\\s*([^\\n\\r|]{5,200})",
+      "(?:proje(?:nin)? ad[ıi]|proje başlığ[ıi]|proje konusu|projenin konusu|araştırma başlığı|başlık|konu)\\s*[:：|]?\\s*([^\\n\\r|]{5,200})",
       "(?:makale başlığı|yayın adı)\\s*[:：|]?\\s*([^\\n\\r|]{5,200})"
     ],
     "requested_budget": [
-      "(?:talep edilen (?:toplam )?bütçe|bütçe toplamı|toplam bütçe|toplam talep|talep edilen destek tutarı)\\s*[:：|]?\\s*([₺0-9\\.,\\s]+(?:TL|TRY|tl)?)",
-      "(?:bütçe\\s*toplamı)\\s*[:：|]?\\s*([₺0-9\\.,\\s]+(?:TL|TRY|tl)?)"
+      "(?:talep edilen (?:toplam )?bütçe|bütçe toplamı|talep edilen bütçe|talep edilen destek tutarı|talep edilen tutar|proje bütçesi|proje maliyeti|bütçe tutarı)\\s*[:：|]?\\s*([₺0-9\\.,\\s]+(?:TL|TRY|tl)?)",
+      "(?:genel\\s*toplam|toplam\\s*bütçe|toplam\\s*talep|toplam\\s*bedel|toplam\\s*maliyet)\\s*[:：|]?\\s*([₺0-9\\.,\\s]+(?:TL|TRY|tl)?)"
     ],
     "existing_approved_budget": [
       "(?:mevcut bütçe|onaylanan bütçe|önceki bütçe|mevcut onaylı bütçe)\\s*[:：|]?\\s*([₺0-9\\.,\\s]+(?:TL|TRY|tl)?)"

@@ -164,8 +164,12 @@ class EvaluationService:
             applicant_title=s_data.applicant_title or "Öğretim Üyesi",
             applicant_name=s_data.applicant_name or "Yürütücü",
             department=s_data.department or "Bölüm",
-            requested_budget=f"{s_data.requested_budget_total_tl:,.2f}" if s_data.requested_budget_total_tl else "0.00",
-            requested_duration=str(s_data.requested_duration_months or 0),
+            requested_budget=f"{s_data.requested_budget_total_tl:,.2f}" if s_data.requested_budget_total_tl else "0.00 (Belirtilmemiş/Eksik)",
+            requested_duration=(
+                str(s_data.requested_duration_months)
+                if s_data.requested_duration_months and s_data.requested_duration_months > 0
+                else "0 (BELİRTİLMEMİŞ / EKSİK)"
+            ),
             wet_signature="VAR" if s_data.wet_signature_present else "YOK (Eksik)",
             ethics_required="EVET" if s_data.ethics_required_keywords_detected else "HAYIR",
             attachments=", ".join([a.value for a in s_data.detected_attachments]),
@@ -188,37 +192,79 @@ class EvaluationService:
         )
 
     async def ask_question(self, request: QaRequest) -> QaResponse:
-        p_code = request.submission_context.detected_project_code
+        sub_ctx = request.submission_context
+        p_code = sub_ctx.detected_project_code if sub_ctx else None
+        s_type = sub_ctx.detected_submission_type.value if sub_ctx and sub_ctx.detected_submission_type else None
+
         relevant_chunks = self.retriever.retrieve(
             request.question,
-            top_k=4,
+            top_k=5,
             project_code=p_code,
+            submission_type=s_type,
         )
 
         provider_used = self.llm_gateway.provider
         model_name = self.llm_gateway.get_active_model()
 
+        # Build submission context block
+        submission_summary_lines = []
+        if sub_ctx:
+            submission_summary_lines.append(f"- Başvuru Türü: {s_type or 'NEW_PROJECT'}")
+            submission_summary_lines.append(f"- Proje Kodu: {p_code or 'Belirtilmemiş'}")
+            submission_summary_lines.append(f"- Proje Başlığı: {sub_ctx.project_title or 'Belirtilmemiş'}")
+            submission_summary_lines.append(
+                f"- Yürütücü: {sub_ctx.applicant_title or ''} {sub_ctx.applicant_name or 'Belirtilmemiş'} ({sub_ctx.department or 'Bölüm Belirtilmemiş'})"
+            )
+            budget_str = f"{sub_ctx.requested_budget_total_tl:,.2f} TL" if sub_ctx.requested_budget_total_tl else "Belirtilmemiş (0 TL)"
+            dur_str = (
+                f"{sub_ctx.requested_duration_months} Ay"
+                if sub_ctx.requested_duration_months and sub_ctx.requested_duration_months > 0
+                else "0 Ay (Belirtilmemiş / Eksik)"
+            )
+            submission_summary_lines.append(f"- Talep Edilen Bütçe: {budget_str}")
+            submission_summary_lines.append(f"- Talep Edilen Süre: {dur_str}")
+            submission_summary_lines.append(f"- Islak İmza: {'Mevcut' if sub_ctx.wet_signature_present else 'Eksik'}")
+            submission_summary_lines.append(
+                f"- Etik Kurul Gereksinimi: {'Evet' if sub_ctx.ethics_required_keywords_detected else 'Hayır'}"
+            )
+            if sub_ctx.budget_line_items:
+                items_str = "; ".join(
+                    [f"{it.name} ({it.category.value}: {it.total_tl:,.2f} TL)" for it in sub_ctx.budget_line_items[:15]]
+                )
+                submission_summary_lines.append(f"- Bütçe Kalemleri ({len(sub_ctx.budget_line_items)} adet): {items_str}")
+            if sub_ctx.notes:
+                submission_summary_lines.append(f"- Başvuru Dosyası İçeriği / Notlar:\n{sub_ctx.notes[:4000]}")
+        submission_context_text = "\n".join(submission_summary_lines) if submission_summary_lines else "Başvuru bağlamı belirtilmedi."
+
         # Try LLM first
         llm_answer = None
         context_chunks_text = "\n\n".join([
-            f"[{c['regulation_doc_name']} - {c['regulation_article_ref']}]:\n{c['raw_text']}"
+            f"[{c['regulation_doc_name']} - {c['regulation_article_ref']}]:\n{c.get('raw_text') or c.get('content_text', '')}"
             for c in relevant_chunks
         ])
 
-        messages = [
+        messages: List[Dict[str, str]] = [
             {"role": "system", "content": QA_SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": (
-                    f"SORU: {request.question}\n\n"
-                    f"İLGİLİ MEVZUAT METİNLERİ:\n{context_chunks_text}\n\n"
-                    "Cevabını yukarıdaki mevzuat maddelerine dayandırarak Türkçe resmi üslupla ver."
-                ),
-            },
         ]
 
-        llm_resp = await self.llm_gateway.chat_completion(messages=messages, temperature=0.1, timeout=20.0)
-        if llm_resp and len(llm_resp.strip()) > 30:
+        # Include recent chat history (up to last 6 messages)
+        if request.chat_history:
+            for hist_msg in request.chat_history[-6:]:
+                if hist_msg.content and hist_msg.content.strip():
+                    messages.append({"role": hist_msg.role, "content": hist_msg.content.strip()})
+
+        messages.append({
+            "role": "user",
+            "content": (
+                f"BAŞVURU DOSYASI ÖZETİ:\n{submission_context_text}\n\n"
+                f"İLGİLİ MEÜ BAP MEVZUAT METİNLERİ:\n{context_chunks_text}\n\n"
+                f"KULLANICI SORUSU: {request.question}\n\n"
+                "Cevabını yukarıdaki MEÜ BAP mevzuat maddelerine ve başvuru dosyası verilerine dayandırarak Türkçe resmi üslupla ver."
+            ),
+        })
+
+        llm_resp = await self.llm_gateway.chat_completion(messages=messages, temperature=0.1, timeout=25.0)
+        if llm_resp and len(llm_resp.strip()) > 20:
             llm_answer = llm_resp.strip()
 
         if llm_answer:
@@ -242,7 +288,7 @@ class EvaluationService:
         answer_tr, citations = self.synthesizer.answer_qa(
             question=request.question,
             relevant_chunks=relevant_chunks,
-            submission_context=request.submission_context,
+            submission_context=sub_ctx,
         )
         return QaResponse(
             answer_tr=answer_tr,

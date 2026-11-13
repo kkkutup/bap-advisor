@@ -22,17 +22,17 @@ public interface SubmissionRepository extends JpaRepository<Submission, UUID> {
     @Query("SELECT s FROM Submission s WHERE " +
             "(:status IS NULL OR s.status = :status) AND " +
             "(:submissionType IS NULL OR s.submissionType = :submissionType) AND " +
-            "(:projectCode IS NULL OR s.projectCode = :projectCode) AND " +
+            "(:projectCode = '' OR s.projectCode = :projectCode) AND " +
             "(:assignedOfficerId IS NULL OR s.assignedOfficerId = :assignedOfficerId) AND " +
-            "(:search IS NULL OR LOWER(s.referenceNo) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-            "LOWER(s.title) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-            "LOWER(s.applicantName) LIKE LOWER(CONCAT('%', :search, '%')))")
+            "(:searchPattern = '%' OR LOWER(s.referenceNo) LIKE :searchPattern OR " +
+            "LOWER(s.title) LIKE :searchPattern OR " +
+            "LOWER(s.applicantName) LIKE :searchPattern)")
     Page<Submission> findWithFilters(
             @Param("status") SubmissionStatus status,
             @Param("submissionType") SubmissionType submissionType,
             @Param("projectCode") String projectCode,
             @Param("assignedOfficerId") UUID assignedOfficerId,
-            @Param("search") String search,
+            @Param("searchPattern") String searchPattern,
             Pageable pageable
     );
 }

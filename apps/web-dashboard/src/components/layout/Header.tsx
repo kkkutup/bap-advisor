@@ -71,39 +71,36 @@ export const Header: React.FC = () => {
 
         {/* Right Actions: System Badges & User Menu */}
         <div className="flex items-center gap-2.5">
-          {/* Active LLM Provider Badge */}
+          {/* Active Engine Badge */}
           <Link
             to="/admin/settings"
-            title="LLM Sağlayıcı ve Airgap Yapılandırması"
+            title="Sistem ve Model Yapılandırması"
             className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 hover:bg-slate-200/80 text-slate-700 border border-slate-200 transition-colors"
           >
             <Cpu className="w-3.5 h-3.5 text-meu-600" />
             <span>
               {providerStatus?.active_provider === 'ollama' || providerStatus?.active_provider === 'vllm'
-                ? '%100 Lokal'
-                : 'NanoGPT Test'}
+                ? 'Kurum İçi Model'
+                : 'Harici API Modu'}
             </span>
             {providerStatus?.airgapped_mode && (
               <span className="px-1 py-0.2 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded">
-                AIRGAP
+                KAPALI AĞ
               </span>
             )}
           </Link>
 
-          {/* Connection Status & Offline Toggle Badge */}
-          <button
-            onClick={toggleOfflineMode}
-            title="Canlı API (:8080) ile Çevrimdışı Mock Modu arasında geçiş yap"
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border transition-colors cursor-pointer ${
-              isOfflineMode
-                ? 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100'
-                : 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100'
+          {/* Service Status Indicator */}
+          <div
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border ${
+              isBackendReachable
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : 'bg-amber-50 text-amber-800 border-amber-200'
             }`}
           >
-            <Server className={`w-3.5 h-3.5 ${isOfflineMode ? 'text-amber-600' : 'text-emerald-600'}`} />
-            <span>{isOfflineMode ? 'Çevrimdışı Önizleme' : 'Canlı API Bağlı'}</span>
-            <RefreshCw className="w-3 h-3 text-slate-400 ml-0.5" />
-          </button>
+            <Server className={`w-3.5 h-3.5 ${isBackendReachable ? 'text-emerald-600' : 'text-amber-600'}`} />
+            <span>{isBackendReachable ? 'Servis Bağlı' : 'Bağlantı Kontrolü'}</span>
+          </div>
 
           {/* User Profile & Role Switcher */}
           <div className="relative">
@@ -142,7 +139,7 @@ export const Header: React.FC = () => {
 
                 <div className="py-1">
                   <p className="px-4 py-1 text-[10px] font-bold uppercase text-slate-400 tracking-wider">
-                    Geliştirme Rolü Değiştir
+                    Birim Rolü Değiştir
                   </p>
                   <button
                     onClick={() => quickLogin('memur@mersin.edu.tr')}

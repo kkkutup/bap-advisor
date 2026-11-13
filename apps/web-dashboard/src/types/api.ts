@@ -142,6 +142,7 @@ export interface SubmissionDocumentDto {
   ocr_confidence?: number | null;
   has_signature_detected?: boolean | null;
   storage_path: string;
+  parsed_markdown?: string | null;
 }
 
 export interface SubmissionVersionResponse {

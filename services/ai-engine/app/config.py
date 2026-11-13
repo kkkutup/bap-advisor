@@ -1,11 +1,15 @@
+import os
 from functools import lru_cache
 from typing import Literal
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+_ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_ROOT_ENV = os.path.join(_ROOT_DIR, ".env")
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(_ROOT_ENV, ".env", "../.env", "../../.env"),
         env_file_encoding="utf-8",
         extra="ignore"
     )
@@ -24,7 +28,7 @@ class Settings(BaseSettings):
     llm_provider: Literal["nanogpt", "ollama", "vllm"] = "nanogpt"
     nanogpt_base_url: str = "https://api.nano-gpt.com/api/v1"
     nanogpt_api_key: str = ""
-    nanogpt_model: str = "openai/gpt-4.1"
+    nanogpt_model: str = "gpt-4o-mini"
 
     ollama_base_url: str = "http://localhost:11434/v1"
     ollama_model: str = "qwen2.5:14b-instruct"

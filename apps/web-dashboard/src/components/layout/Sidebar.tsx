@@ -38,12 +38,12 @@ export const Sidebar: React.FC = () => {
   const adminItems = [
     {
       to: '/admin/regulations',
-      label: 'Mevzuat & 2026 Limitleri',
+      label: 'Mevzuat ve 2026 Limitleri',
       icon: Scale,
     },
     {
       to: '/admin/settings',
-      label: 'Sistem & AI Ayarları',
+      label: 'Sistem ve Entegrasyon',
       icon: Settings,
     },
   ];
@@ -143,9 +143,9 @@ export const Sidebar: React.FC = () => {
 
       {/* Footer Info in Sidebar */}
       <div className="p-4 border-t border-slate-800 text-[11px] text-slate-400 space-y-1 bg-slate-950/40">
-        <p className="font-semibold text-slate-300">MEÜ BAP Danışman v1.0</p>
-        <p>Spring Boot 3 + Python 3.12</p>
-        <p className="text-[10px] text-slate-400">PostgreSQL 16 + pgvector HNSW</p>
+        <p className="font-semibold text-slate-300">MEÜ BAP Koordinasyon Birimi</p>
+        <p>Mevzuat Ön İnceleme Sistemi</p>
+        <p className="text-[10px] text-slate-400">2026 Mali Yılı Uygulama Esasları</p>
       </div>
     </aside>
   );

@@ -81,6 +81,17 @@ class DurationEvaluatorTest {
     }
 
     @Test
+    @DisplayName("NEW_PROJECT zero duration (0 months) is MISSING_DOCUMENT, not COMPLIANT")
+    void testNewProjectZeroDurationIsMissingDocument() {
+        StructuredSubmissionDto submission = createSubmission(SubmissionType.NEW_PROJECT, "TP2", 0, null);
+        List<FindingDto> findings = evaluator.evaluate(submission, context);
+
+        assertEquals(1, findings.size());
+        assertEquals(FindingSeverity.MISSING_DOCUMENT, findings.get(0).severity());
+        assertTrue(findings.get(0).actualValue().contains("0 ay"));
+    }
+
+    @Test
     @DisplayName("ADDITIONAL_TIME non-thesis total <= 36m and <= 50% is COMPLIANT")
     void testAdditionalTimeNonThesisCompliant() {
         // AP2: existing 24 months, requested 10 months. Total 34 months <= 36. 10m <= 50% (12m)

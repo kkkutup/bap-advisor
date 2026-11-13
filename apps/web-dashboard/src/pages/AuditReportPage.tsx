@@ -10,7 +10,7 @@ import {
   FindingSeverity,
   FindingSource,
 } from '../types/api';
-import { SeverityBadge, SourceBadge, SubmissionTypeBadge } from '../components/ui/Badge';
+import { SeverityBadge, SourceBadge, StatusBadge, SubmissionTypeBadge } from '../components/ui/Badge';
 import { Modal } from '../components/ui/Modal';
 import {
   ShieldCheck,
@@ -32,6 +32,8 @@ import {
   X,
   FileText,
   UserCheck,
+  Lock,
+  Mail,
 } from 'lucide-react';
 
 export const AuditReportPage: React.FC = () => {
@@ -60,6 +62,8 @@ export const AuditReportPage: React.FC = () => {
   const [revisionDraft, setRevisionDraft] = useState('');
   const [referralSummary, setReferralSummary] = useState('');
   const [copiedDraft, setCopiedDraft] = useState<string | null>(null);
+  const [recipientEmail, setRecipientEmail] = useState('');
+  const [sendingRevision, setSendingRevision] = useState(false);
 
   // Contextual Q&A panel state
   const [qaOpen, setQaOpen] = useState(false);
@@ -76,6 +80,50 @@ export const AuditReportPage: React.FC = () => {
   // Status Action state
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
+  const buildFallbackRevisionDraft = (
+    sub: SubmissionDetailResponse,
+    evalRes: EvaluationResultResponse
+  ): string => {
+    if (evalRes.revision_draft_tr && evalRes.revision_draft_tr.trim()) {
+      return evalRes.revision_draft_tr;
+    }
+    const issues = (evalRes.findings || []).filter(
+      (f) => f.severity === 'VIOLATION' || f.severity === 'MISSING_DOCUMENT'
+    );
+    const lines = [
+      'T.C. MERSİN ÜNİVERSİTESİ',
+      'BİLİMSEL ARAŞTIRMA PROJELERİ (BAP) KOORDİNASYON BİRİMİ BAŞKANLIĞI',
+      '',
+      `Referans No: ${sub.reference_no} (v${vNum}) | Proje Türü: ${sub.project_code || sub.submission_type}`,
+      `Proje Başlığı: ${sub.title}`,
+      `Sayın ${sub.applicant_title || ''} ${sub.applicant_name || 'Proje Yürütücüsü'},`,
+      '',
+      'BAP Otomasyon Sistemi üzerinden ilettiğiniz başvurunuzun MEÜ BAP Yönergesi ve 2026 Yılı Uygulama Usul ve Esasları çerçevesinde yapılan ön incelemesinde aşağıdaki hususların tamamlanması/revize edilmesi gerektiği tespit edilmiştir:',
+      '',
+    ];
+    if (issues.length > 0) {
+      issues.forEach((f, idx) => {
+        lines.push(`${idx + 1}. ${f.title_tr} (${f.regulation_doc_name}, ${f.regulation_article_ref}):`);
+        lines.push(`   - Tespit: ${f.explanation_tr}`);
+        if (f.expected_value || f.actual_value) {
+          lines.push(`   - Beklenen: ${f.expected_value || '-'} | Mevcut: ${f.actual_value || '-'}`);
+        }
+        lines.push('');
+      });
+    } else {
+      lines.push('1. Ön inceleme görevlisi tarafından belirtilen ek belge ve şekli düzenlemelerin tamamlanması gerekmektedir.');
+      lines.push('');
+    }
+    lines.push(
+      'Yukarıda belirtilen eksikliklerin giderilerek güncel revizyon dosyasının (v' +
+        (vNum + 1) +
+        ') en geç 15 (on beş) gün içerisinde bap2.mersin.edu.tr üzerinden yeniden yüklenmesi rica olunur.'
+    );
+    lines.push('');
+    lines.push('Mersin Üniversitesi BAP Koordinasyon Birimi');
+    return lines.join('\n');
+  };
+
   useEffect(() => {
     if (!id) return;
     setLoading(true);
@@ -88,8 +136,20 @@ export const AuditReportPage: React.FC = () => {
         setSubmission(sub);
         setVersion(ver);
         setEvaluation(evalRes);
-        setRevisionDraft(evalRes.revision_draft_tr || '');
+        setRevisionDraft(buildFallbackRevisionDraft(sub, evalRes));
         setReferralSummary(evalRes.commission_referral_summary_tr || '');
+        const slugName = (sub.applicant_name || 'yurutucu')
+          .toLowerCase()
+          .replace(/ğ/g, 'g')
+          .replace(/ü/g, 'u')
+          .replace(/ş/g, 's')
+          .replace(/ı/g, 'i')
+          .replace(/ö/g, 'o')
+          .replace(/ç/g, 'c')
+          .replace(/[^a-z0-9]/g, '.')
+          .replace(/\.+/g, '.')
+          .replace(/^\.|\.$/g, '');
+        setRecipientEmail(`${slugName || 'yurutucu'}@mersin.edu.tr`);
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -133,14 +193,18 @@ export const AuditReportPage: React.FC = () => {
     setTimeout(() => setCopiedDraft(null), 2500);
   };
 
-  const handleExport = async (format: 'pdf' | 'docx') => {
+  const handleExport = async (format: 'pdf' | 'docx', reportType: 'audit' | 'revision' = 'audit') => {
     if (!id) return;
     try {
-      const blob = await evaluationApi.exportAuditReport(id, vNum, format);
+      const blob = await evaluationApi.exportAuditReport(id, vNum, format, reportType);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `MEU_BAP_On_Inceleme_Tutanagi_${submission?.reference_no || id}_v${vNum}.${format}`;
+      const prefix =
+        reportType === 'revision'
+          ? 'MEU_BAP_Revizyon_Bildirim_Raporu'
+          : 'MEU_BAP_On_Inceleme_Tutanagi';
+      a.download = `${prefix}_${submission?.reference_no || id}_v${vNum}.${format}`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -150,21 +214,69 @@ export const AuditReportPage: React.FC = () => {
     }
   };
 
-  const handleUpdateStatus = async (targetStatus: any) => {
+  const handleUpdateStatus = async (targetStatus: any, customNotes?: string) => {
     if (!id) return;
+    if (submission?.status === 'REVISION_REQUESTED' && targetStatus === 'COMMISSION_REFERRED') {
+      alert(
+        'Revizyon (iade) istenmiş bir başvuru, yeni revize versiyon yüklenip tekrar değerlendirilmeden Profesör Kuruluna sevk edilemez!'
+      );
+      return;
+    }
     try {
       await submissionsApi.updateSubmissionStatus(id, {
         target_status: targetStatus,
-        officer_notes: 'Ön inceleme denetim raporu onaylandı.',
+        officer_notes:
+          customNotes ||
+          (targetStatus === 'REVISION_REQUESTED'
+            ? revisionDraft || 'Eksiklik ve mevzuat revizyon talebi yürütücüye iletildi.'
+            : 'Ön inceleme denetim raporu onaylandı.'),
       });
-      setActionSuccess(`Başvuru durumu başarıyla güncellendi: ${targetStatus}`);
-      setTimeout(() => setActionSuccess(null), 3000);
+      const statusLabel =
+        targetStatus === 'REVISION_REQUESTED'
+          ? 'REVİZYON İSTENDİ (İade Edildi, Profesör Kuruluna Sevk Kilitlendi)'
+          : targetStatus === 'COMMISSION_REFERRED'
+          ? 'PROFESÖR KURULUNA SEVK EDİLDİ'
+          : targetStatus;
+      setActionSuccess(`Başvuru durumu güncellendi: ${statusLabel}`);
+      setTimeout(() => setActionSuccess(null), 5000);
       // Reload sub
       const refreshed = await submissionsApi.getSubmissionById(id);
       setSubmission(refreshed);
     } catch (err: any) {
       alert(`Durum geçiş hatası: ${err?.message}`);
     }
+  };
+
+  const handleSendRevisionReport = async (alsoDownloadPdf: boolean = true) => {
+    if (!id) return;
+    setSendingRevision(true);
+    try {
+      await submissionsApi.updateSubmissionStatus(id, {
+        target_status: 'REVISION_REQUESTED',
+        officer_notes: `[Alıcı: ${recipientEmail || 'Yürütücü'}]\n${revisionDraft}`,
+      });
+      if (alsoDownloadPdf) {
+        await handleExport('pdf', 'revision');
+      }
+      const refreshed = await submissionsApi.getSubmissionById(id);
+      setSubmission(refreshed);
+      setActionSuccess(
+        `Revizyon Raporu (${submission?.reference_no}) yürütücüye (${recipientEmail}) iletildi ve başvuru 'Revizyon İstendi' durumuna alındı. Yeni versiyon yüklenmeden Profesör Kuruluna sevk edilemez.`
+      );
+      setTimeout(() => setActionSuccess(null), 6000);
+    } catch (err: any) {
+      alert(`Revizyon raporu gönderim hatası: ${err?.message}`);
+    } finally {
+      setSendingRevision(false);
+    }
+  };
+
+  const handleOpenMailtoRevision = () => {
+    const subject = encodeURIComponent(
+      `[MEÜ BAP] ${submission?.reference_no || ''} Nolu Proje Başvurusu Revizyon / Eksiklik Bildirimi (v${vNum})`
+    );
+    const body = encodeURIComponent(revisionDraft);
+    window.open(`mailto:${recipientEmail}?subject=${subject}&body=${body}`, '_blank');
   };
 
   const handleSendQa = async (e: React.FormEvent) => {
@@ -223,6 +335,8 @@ export const AuditReportPage: React.FC = () => {
   const compliantCount = findings.filter((f) => f.severity === 'COMPLIANT').length;
 
   const overallStatus = evaluation?.overall_compliance_status || 'NEEDS_REVISION';
+  const isRevisionRequested = submission?.status === 'REVISION_REQUESTED';
+  const isCommissionReferred = submission?.status === 'COMMISSION_REFERRED';
 
   return (
     <div className="space-y-6">
@@ -239,10 +353,36 @@ export const AuditReportPage: React.FC = () => {
         </div>
       )}
 
+      {/* Revision Lock Banner when status is REVISION_REQUESTED */}
+      {isRevisionRequested && (
+        <div className="p-4 bg-rose-50 border border-rose-300 rounded-xl text-xs text-rose-950 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-xs">
+          <div className="flex items-start gap-2.5">
+            <Lock className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-bold block text-rose-900">
+                Bu Başvuru İçin Revizyon (İade) Talep Edilmiştir: Profesör Kuruluna Sevk Kilitli
+              </span>
+              <span className="text-rose-800">
+                Revizyon istenen bir proje, yürütücü tarafından revize versiyon (v{vNum + 1}) yüklenip yeniden değerlendirilmeden Profesör Kuruluna sevk edilemez. Sağ panelden Revizyon Raporunu dışa aktarabilir veya yürütücüye tekrar iletebilirsiniz.
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => handleExport('pdf', 'revision')}
+              className="px-3 py-1.5 rounded-lg bg-rose-700 hover:bg-rose-800 text-white font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Revizyon Raporu İndir (PDF)</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Top Header & Workflow Bar */}
       <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="font-mono text-sm font-bold text-meu-900">{submission?.reference_no}</span>
             <span className="px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 font-mono">
               v{vNum} Raporu
@@ -251,6 +391,7 @@ export const AuditReportPage: React.FC = () => {
               type={submission?.submission_type || 'NEW_PROJECT'}
               projectCode={submission?.project_code}
             />
+            {submission?.status && <StatusBadge status={submission.status} />}
           </div>
           <h2 className="text-base font-bold text-slate-900 mt-1">{submission?.title}</h2>
           <p className="text-xs text-slate-500 mt-0.5">
@@ -271,18 +412,20 @@ export const AuditReportPage: React.FC = () => {
             </Link>
           )}
 
-          {/* Export PDF / DOCX */}
+          {/* Export PDF / DOCX (Ön İnceleme Tutanağı) */}
           <div className="inline-flex rounded-lg border border-slate-300 p-0.5 bg-slate-50">
             <button
-              onClick={() => handleExport('pdf')}
-              className="px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-white rounded-md transition-colors flex items-center gap-1"
+              onClick={() => handleExport('pdf', 'audit')}
+              className="px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-white rounded-md transition-colors flex items-center gap-1 cursor-pointer"
+              title="Genel Ön İnceleme Tutanağı (PDF)"
             >
               <Download className="w-3.5 h-3.5 text-rose-600" />
               <span>PDF Tutanak</span>
             </button>
             <button
-              onClick={() => handleExport('docx')}
-              className="px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-white rounded-md transition-colors flex items-center gap-1"
+              onClick={() => handleExport('docx', 'audit')}
+              className="px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-white rounded-md transition-colors flex items-center gap-1 cursor-pointer"
+              title="Genel Ön İnceleme Tutanağı (DOCX)"
             >
               <Download className="w-3.5 h-3.5 text-blue-600" />
               <span>DOCX</span>
@@ -292,19 +435,54 @@ export const AuditReportPage: React.FC = () => {
           {/* Return for Revision */}
           <button
             onClick={() => handleUpdateStatus('REVISION_REQUESTED')}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-xs transition-colors"
+            disabled={isRevisionRequested || isCommissionReferred}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-xs transition-colors ${
+              isRevisionRequested
+                ? 'bg-rose-100 text-rose-800 border border-rose-300 cursor-not-allowed'
+                : isCommissionReferred
+                ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                : 'bg-rose-600 hover:bg-rose-700 text-white cursor-pointer'
+            }`}
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span>Revizyon İste (İade)</span>
+            <span>{isRevisionRequested ? 'Revizyon İstendi (İade Edildi)' : 'Revizyon İste (İade)'}</span>
           </button>
 
-          {/* Refer to Commission */}
+          {/* Refer to Commission (Disabled if REVISION_REQUESTED!) */}
           <button
             onClick={() => handleUpdateStatus('COMMISSION_REFERRED')}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-xs transition-colors"
+            disabled={isRevisionRequested || isCommissionReferred}
+            title={
+              isRevisionRequested
+                ? 'Revizyon istenmiş bir başvuru Profesör Kuruluna sevk edilemez!'
+                : isCommissionReferred
+                ? 'Bu başvuru zaten Profesör Kuruluna sevk edilmiştir.'
+                : 'Başvuruyu BAP Komisyonuna (Profesör Kurulu) sevk et'
+            }
+            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-xs transition-colors ${
+              isRevisionRequested
+                ? 'bg-slate-200 text-slate-500 border border-slate-300 cursor-not-allowed opacity-75'
+                : isCommissionReferred
+                ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 cursor-not-allowed'
+                : 'bg-emerald-700 hover:bg-emerald-800 text-white cursor-pointer'
+            }`}
           >
-            <Send className="w-3.5 h-3.5" />
-            <span>Profesör Kuruluna Sevk Et</span>
+            {isRevisionRequested ? (
+              <>
+                <Lock className="w-3.5 h-3.5 text-slate-500" />
+                <span>Sevk Kilitli (Revizyon Bekleniyor)</span>
+              </>
+            ) : isCommissionReferred ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-700" />
+                <span>Profesör Kuruluna Sevk Edildi</span>
+              </>
+            ) : (
+              <>
+                <Send className="w-3.5 h-3.5" />
+                <span>Profesör Kuruluna Sevk Et</span>
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -551,30 +729,103 @@ export const AuditReportPage: React.FC = () => {
 
         {/* Right Column (4 cols): Action Drafts & Interactive Q&A */}
         <div className="lg:col-span-4 space-y-4">
-          {/* Action Draft 1: Yürütücü İade Notu */}
-          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                Yürütücü İade / Revizyon Yazısı
-              </h4>
+          {/* Action Draft 1: Yürütücü İade / Revizyon Raporu & Dışa Aktarım / Gönderim */}
+          <div className="bg-white rounded-xl border border-rose-200 p-4 shadow-xs space-y-3">
+            <div className="flex items-center justify-between border-b border-rose-100 pb-2.5">
+              <div className="flex items-center gap-1.5">
+                <FileText className="w-4 h-4 text-rose-600" />
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                  Revizyon Raporu & Yürütücü İade Bildirimi
+                </h4>
+              </div>
               <button
                 onClick={() => handleCopy(revisionDraft, 'revision')}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
               >
                 {copiedDraft === 'revision' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copiedDraft === 'revision' ? 'Kopyalandı' : 'Kopyala'}</span>
+                <span>{copiedDraft === 'revision' ? 'Kopyalandı' : 'Metni Kopyala'}</span>
               </button>
             </div>
+
             <textarea
-              rows={8}
+              rows={9}
               value={revisionDraft}
               onChange={(e) => setRevisionDraft(e.target.value)}
               placeholder="İhlal durumunda yürütücüye gönderilecek resmi iade metni buraya üretilir..."
-              className="w-full p-2.5 text-xs font-mono border border-slate-300 rounded-lg focus:ring-2 focus:ring-meu-500 focus:border-meu-500 bg-slate-50/50 leading-relaxed"
+              className="w-full p-2.5 text-xs font-mono border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 bg-slate-50/50 leading-relaxed"
             />
-            <p className="text-[11px] text-slate-400">
-              Bu metin otomasyon sisteminde yürütücünün e-posta bildirimine ve portalına doğrudan yapıştırılabilir.
-            </p>
+
+            {/* Revizyon Raporu Dışa Aktar (PDF / DOCX) */}
+            <div className="p-3 rounded-lg bg-rose-50/70 border border-rose-200/80 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-rose-900">
+                  1. Revizyon Raporu Dışa Aktar
+                </span>
+                <span className="text-[10px] font-semibold text-rose-700">Resmi Antetli Bildirim</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleExport('pdf', 'revision')}
+                  className="py-1.5 px-2.5 rounded-lg bg-white hover:bg-rose-100/60 border border-rose-300 text-rose-800 text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5 text-rose-600" />
+                  <span>Revizyon PDF İndir</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleExport('docx', 'revision')}
+                  className="py-1.5 px-2.5 rounded-lg bg-white hover:bg-blue-50 border border-slate-300 text-slate-800 text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Revizyon DOCX İndir</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Revizyon Raporunu Yürütücüye Gönder & İade Et */}
+            <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-2.5">
+              <span className="text-[11px] font-bold uppercase tracking-wide text-slate-800 block">
+                2. Revizyon Raporunu Yürütücüye Gönder
+              </span>
+              <div>
+                <label className="block text-[10px] font-semibold text-slate-500 mb-1">
+                  Yürütücü E-Posta / Kurumsal Bildirim Adresi
+                </label>
+                <input
+                  type="email"
+                  value={recipientEmail}
+                  onChange={(e) => setRecipientEmail(e.target.value)}
+                  placeholder="yurutucu@mersin.edu.tr"
+                  className="w-full py-1.5 px-2.5 text-xs border border-slate-300 rounded-md bg-white focus:ring-2 focus:ring-rose-500"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <button
+                  type="button"
+                  disabled={sendingRevision || isCommissionReferred}
+                  onClick={() => handleSendRevisionReport(true)}
+                  className="w-full py-2 px-3 rounded-lg bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>
+                    {sendingRevision
+                      ? 'Gönderiliyor...'
+                      : isRevisionRequested
+                      ? 'Revizyon Raporunu Tekrar Gönder & PDF İndir'
+                      : 'Revizyon Raporunu Gönder & Dosyayı İade Et'}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOpenMailtoRevision}
+                  className="w-full py-1.5 px-3 rounded-lg bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Mail className="w-3.5 h-3.5 text-slate-600" />
+                  <span>E-Posta İstemcisinde Aç (mailto)</span>
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Action Draft 2: Komisyon Sevk Özeti */}
@@ -612,7 +863,7 @@ export const AuditReportPage: React.FC = () => {
               </h4>
             </div>
             <p className="text-xs text-slate-300 leading-relaxed">
-              Bu başvuru ve MEÜ mevzuatına dair aklınıza takılan soruları yapay zekâya sorun; madde atıflı yanıt alın.
+              Başvuru dosyası ve yürürlükteki MEÜ BAP mevzuatı kapsamında madde dayanaklı sorgulama yapın.
             </p>
             <button
               type="button"
@@ -657,7 +908,7 @@ export const AuditReportPage: React.FC = () => {
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Gerekçe Notu (Zorunlu — Denetim Kaydına Yazılır)
+              Gerekçe Notu (Zorunlu, Denetim Kaydına Yazılır)
             </label>
             <textarea
               rows={3}
@@ -762,7 +1013,7 @@ export const AuditReportPage: React.FC = () => {
                               className="p-2 rounded bg-blue-50 border border-blue-200 text-[11px] text-slate-800"
                             >
                               <div className="font-bold text-meu-800">
-                                {cite.regulation_doc_name} — {cite.regulation_article_ref}
+                                {cite.regulation_doc_name}, {cite.regulation_article_ref}
                               </div>
                               <div className="italic text-slate-600 mt-0.5">{cite.verbatim_quote}</div>
                             </div>

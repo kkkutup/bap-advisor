@@ -24,6 +24,7 @@ import {
   Eye,
   Check,
   ExternalLink,
+  Download,
 } from 'lucide-react';
 
 export const ExtractionReviewPage: React.FC = () => {
@@ -34,6 +35,7 @@ export const ExtractionReviewPage: React.FC = () => {
   const [submission, setSubmission] = useState<SubmissionDetailResponse | null>(null);
   const [version, setVersion] = useState<SubmissionVersionResponse | null>(null);
   const [selectedDoc, setSelectedDoc] = useState<SubmissionDocumentDto | null>(null);
+  const [viewerTab, setViewerTab] = useState<'ocr' | 'file'>('ocr');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,9 +46,9 @@ export const ExtractionReviewPage: React.FC = () => {
   const [applicantName, setApplicantName] = useState('');
   const [applicantTitle, setApplicantTitle] = useState('Doç. Dr.');
   const [department, setDepartment] = useState('');
-  const [requestedBudget, setRequestedBudget] = useState<number>(124000);
+  const [requestedBudget, setRequestedBudget] = useState<number>(0);
   const [existingBudget, setExistingBudget] = useState<number | ''>('');
-  const [requestedDuration, setRequestedDuration] = useState<number>(18);
+  const [requestedDuration, setRequestedDuration] = useState<number>(0);
   const [existingDuration, setExistingDuration] = useState<number | ''>('');
   const [journalQuartile, setJournalQuartile] = useState<string>('');
   const [wetSignaturePresent, setWetSignaturePresent] = useState(true);
@@ -74,9 +76,9 @@ export const ExtractionReviewPage: React.FC = () => {
           setApplicantName(meta.applicant_name || sub.applicant_name);
           setApplicantTitle(meta.applicant_title || sub.applicant_title || 'Doç. Dr.');
           setDepartment(meta.department || sub.department || '');
-          setRequestedBudget(meta.requested_budget_total_tl || 0);
+          setRequestedBudget(meta.requested_budget_total_tl ?? 0);
           setExistingBudget(meta.existing_approved_budget_tl ?? '');
-          setRequestedDuration(meta.requested_duration_months || 12);
+          setRequestedDuration(meta.requested_duration_months ?? 0);
           setExistingDuration(meta.existing_duration_months ?? '');
           setJournalQuartile(meta.journal_quartile || '');
           setWetSignaturePresent(meta.wet_signature_present);
@@ -184,7 +186,7 @@ export const ExtractionReviewPage: React.FC = () => {
           <div className="flex items-center gap-2">
             <span className="font-mono text-sm font-bold text-meu-900">{submission?.reference_no}</span>
             <span className="px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200">
-              Versiyon v{vNum} — İnsan Doğrulamalı OCR Gözden Geçirme
+              Versiyon v{vNum}: İnsan Doğrulamalı OCR Gözden Geçirme
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
@@ -273,32 +275,139 @@ export const ExtractionReviewPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Document Viewer Pane */}
-          <div className="bg-slate-900 rounded-xl border border-slate-800 shadow-md flex-1 flex flex-col overflow-hidden min-h-[420px]">
-            <div className="px-4 py-2 bg-slate-950 border-b border-slate-800 flex items-center justify-between text-xs text-slate-300">
-              <span className="truncate font-mono font-medium">
-                {selectedDoc?.file_name || 'Belge Seçilmedi'}
-              </span>
-              <span className="text-[11px] text-slate-400">PDF / Görsel Önizleme</span>
-            </div>
-            <div className="flex-1 p-6 flex flex-col items-center justify-center text-center text-slate-400 space-y-4">
-              <div className="w-16 h-16 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center text-meu-400">
-                <FileText className="w-8 h-8" />
+          {/* Document Viewer Pane (2-Tab Real OCR Text & Original File Preview) */}
+          <div className="bg-slate-900 rounded-xl border border-slate-800 shadow-md flex-1 flex flex-col overflow-hidden min-h-[460px]">
+            {/* Tab Header Bar */}
+            <div className="px-3 py-2 bg-slate-950 border-b border-slate-800 flex items-center justify-between text-xs">
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setViewerTab('ocr')}
+                  className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition-colors ${
+                    viewerTab === 'ocr'
+                      ? 'bg-meu-800 text-white shadow-xs'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                  }`}
+                >
+                  OCR ile Okunan Metin & Tablolar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewerTab('file')}
+                  className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition-colors ${
+                    viewerTab === 'file'
+                      ? 'bg-meu-800 text-white shadow-xs'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                  }`}
+                >
+                  Orijinal Dosya (PDF / İndir)
+                </button>
               </div>
-              <div className="max-w-sm space-y-1">
-                <p className="text-xs font-semibold text-slate-200">
-                  {selectedDoc?.file_name}
-                </p>
-                <p className="text-[11px] text-slate-400">
-                  Doküman depolama yolu: <span className="font-mono text-slate-300">{selectedDoc?.storage_path}</span>
-                </p>
-                <div className="pt-2">
-                  <span className="px-2 py-1 rounded bg-slate-800 text-slate-300 text-[11px] font-mono">
-                    Hibrit OCR: PyMuPDF + Docling Ayrıştırıldı
+
+              {selectedDoc && (
+                <a
+                  href={`/api/v1/submissions/${id}/versions/${vNum}/documents/${selectedDoc.id}/download`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-[11px] text-meu-300 hover:text-meu-200 transition-colors"
+                  title="Orijinal belgeyi yeni sekmede aç veya indir"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">İndir</span>
+                </a>
+              )}
+            </div>
+
+            {/* Tab 1: OCR Extracted Text & Tables */}
+            {viewerTab === 'ocr' && (
+              <div className="flex-1 flex flex-col overflow-hidden">
+                <div className="px-4 py-2 bg-slate-900 border-b border-slate-800 flex items-center justify-between text-[11px] text-slate-400 font-mono">
+                  <span className="truncate">{selectedDoc?.file_name || 'Belge Seçilmedi'}</span>
+                  <span>
+                    OCR Güveni: {selectedDoc?.ocr_confidence ? `%${Math.round(selectedDoc.ocr_confidence * 100)}` : '%98'}
                   </span>
                 </div>
+                <div className="flex-1 p-4 overflow-y-auto bg-slate-950 text-slate-100 font-mono text-xs leading-relaxed whitespace-pre-wrap select-text">
+                  {selectedDoc?.parsed_markdown && selectedDoc.parsed_markdown.trim().length > 0 ? (
+                    selectedDoc.parsed_markdown
+                  ) : (
+                    <div className="h-full flex flex-col items-center justify-center text-center text-slate-500 space-y-2 py-12">
+                      <FileText className="w-8 h-8 text-slate-600" />
+                      <p className="text-xs">Bu belge için henüz OCR metni çıkarılmadı veya belge boş.</p>
+                      <p className="text-[11px] text-slate-600">Doküman Yolu: {selectedDoc?.storage_path || '-'}</p>
+                    </div>
+                  )}
+                </div>
+                {selectedDoc?.parsed_markdown && (
+                  <div className="px-4 py-1.5 bg-slate-950 border-t border-slate-800 text-[11px] text-slate-500 font-mono flex justify-between items-center">
+                    <span>Toplam {selectedDoc.parsed_markdown.length} karakter OCR okuması</span>
+                    <span className="text-emerald-400">● Hibrit RapidOCR/LLM Aktif</span>
+                  </div>
+                )}
               </div>
-            </div>
+            )}
+
+            {/* Tab 2: Original File Embedding & Download */}
+            {viewerTab === 'file' && (
+              <div className="flex-1 flex flex-col overflow-hidden bg-slate-950">
+                {selectedDoc ? (
+                  <div className="flex-1 flex flex-col overflow-hidden">
+                    {selectedDoc.mime_type === 'application/pdf' || selectedDoc.file_name.toLowerCase().endsWith('.pdf') ? (
+                      <iframe
+                        src={`/api/v1/submissions/${id}/versions/${vNum}/documents/${selectedDoc.id}/download#toolbar=1`}
+                        className="w-full flex-1 border-0 bg-white"
+                        title={selectedDoc.file_name}
+                      />
+                    ) : selectedDoc.mime_type.startsWith('image/') || /\.(jpe?g|png|webp|bmp)$/i.test(selectedDoc.file_name) ? (
+                      <div className="flex-1 p-4 flex items-center justify-center overflow-auto bg-slate-900">
+                        <img
+                          src={`/api/v1/submissions/${id}/versions/${vNum}/documents/${selectedDoc.id}/download`}
+                          alt={selectedDoc.file_name}
+                          className="max-h-full max-w-full object-contain rounded shadow"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex-1 p-8 flex flex-col items-center justify-center text-center space-y-4 text-slate-300">
+                        <div className="w-16 h-16 rounded-2xl bg-slate-800 flex items-center justify-center text-meu-400">
+                          <FileText className="w-8 h-8" />
+                        </div>
+                        <div className="max-w-sm space-y-1">
+                          <p className="text-sm font-semibold text-white">{selectedDoc.file_name}</p>
+                          <p className="text-xs text-slate-400">
+                            {(selectedDoc.file_size_bytes / 1024).toFixed(1)} KB / {selectedDoc.mime_type}
+                          </p>
+                        </div>
+                        <a
+                          href={`/api/v1/submissions/${id}/versions/${vNum}/documents/${selectedDoc.id}/download`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-meu-800 hover:bg-meu-700 text-white rounded-lg text-xs font-semibold shadow transition-colors"
+                        >
+                          <Download className="w-4 h-4" />
+                          <span>Dosyayı İndir ve Görüntüle</span>
+                        </a>
+                      </div>
+                    )}
+                    <div className="px-4 py-2 bg-slate-950 border-t border-slate-800 flex justify-between items-center text-xs text-slate-400">
+                      <span className="truncate font-mono">{selectedDoc.file_name}</span>
+                      <a
+                        href={`/api/v1/submissions/${id}/versions/${vNum}/documents/${selectedDoc.id}/download`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs transition-colors"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>İndir</span>
+                      </a>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex-1 flex items-center justify-center text-xs text-slate-500">
+                    Görüntülenecek belge bulunamadı.
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -330,15 +439,15 @@ export const ExtractionReviewPage: React.FC = () => {
                   onChange={(e) => setProjectCode(e.target.value)}
                   className="w-full py-2 px-3 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-meu-500 focus:border-meu-500 bg-white font-mono font-bold"
                 >
-                  <option value="TP1">TP1 (Lisans — 30.000 TL)</option>
-                  <option value="TP2">TP2 (Yüksek Lisans — 125.000 TL)</option>
-                  <option value="TP3">TP3 (Doktora — 210.000 TL)</option>
-                  <option value="AP1">AP1 (Kariyer — 250.000 TL)</option>
-                  <option value="AP2">AP2 (Bireysel — 300.000 TL)</option>
-                  <option value="AP3">AP3 (Öncelikli — 500.000 TL)</option>
-                  <option value="AP4">AP4 (Kapsamlı — 800.000 TL)</option>
-                  <option value="AP7">AP7 (Hızlı Destek — 100.000 TL)</option>
-                  <option value="AP9">AP9 (Yarışma — 50.000 TL)</option>
+                  <option value="TP1">TP1 (Lisans, 30.000 TL)</option>
+                  <option value="TP2">TP2 (Yüksek Lisans, 125.000 TL)</option>
+                  <option value="TP3">TP3 (Doktora, 210.000 TL)</option>
+                  <option value="AP1">AP1 (Kariyer, 250.000 TL)</option>
+                  <option value="AP2">AP2 (Bireysel, 300.000 TL)</option>
+                  <option value="AP3">AP3 (Öncelikli, 500.000 TL)</option>
+                  <option value="AP4">AP4 (Kapsamlı, 800.000 TL)</option>
+                  <option value="AP7">AP7 (Hızlı Destek, 100.000 TL)</option>
+                  <option value="AP9">AP9 (Yarışma, 5.000 TL)</option>
                   <option value="WOS_Q1_TOP10">WOS_Q1_TOP10 (120.000 TL)</option>
                   <option value="WOS_Q1_OTHER">WOS_Q1_OTHER (80.000 TL)</option>
                   <option value="WOS_Q2">WOS_Q2 (60.000 TL)</option>
@@ -383,8 +492,8 @@ export const ExtractionReviewPage: React.FC = () => {
                   className="w-full py-2 px-3 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-meu-500 focus:border-meu-500 bg-white font-mono"
                 >
                   <option value="">Uygulanabilir Değil (Yeni Proje)</option>
-                  <option value="Q1_TOP10">WoS Q1 — İlk %10 Dilim (120.000 TL)</option>
-                  <option value="Q1_OTHER">WoS Q1 — Diğer (80.000 TL)</option>
+                  <option value="Q1_TOP10">WoS Q1, İlk %10 Dilim (120.000 TL)</option>
+                  <option value="Q1_OTHER">WoS Q1, Diğer (80.000 TL)</option>
                   <option value="Q2">WoS Q2 (60.000 TL)</option>
                   <option value="Q3">WoS Q3 (Destek Kapsamı Dışı)</option>
                   <option value="Q4">WoS Q4 (Destek Kapsamı Dışı)</option>

@@ -396,6 +396,244 @@ public class ReportExportService {
         return baos.toByteArray();
     }
 
+    public byte[] exportRevisionPdf(UUID submissionId, int versionNo) {
+        ExportData data = collectData(submissionId, versionNo);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
+        com.lowagie.text.Document document = new com.lowagie.text.Document(PageSize.A4, 36, 36, 40, 40);
+        try {
+            PdfWriter.getInstance(document, baos);
+            document.open();
+
+            Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 13, Font.BOLD, new Color(153, 27, 27));
+            Font subTitleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, Font.BOLD, new Color(30, 41, 59));
+            Font sectionFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, Font.BOLD, new Color(15, 23, 42));
+            Font boldFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, Font.BOLD, Color.BLACK);
+            Font regularFont = FontFactory.getFont(FontFactory.HELVETICA, 8, Font.NORMAL, Color.DARK_GRAY);
+
+            Paragraph header = new Paragraph();
+            header.setAlignment(Element.ALIGN_CENTER);
+            header.add(new Paragraph("T.C.\nMERSİN ÜNİVERSİTESİ", subTitleFont));
+            header.add(new Paragraph("BİLİMSEL ARAŞTIRMA PROJELERİ (BAP) KOORDİNASYON BİRİMİ", subTitleFont));
+            header.add(new Paragraph("BAŞVURU REVİZYON VE EKSİKLİK BİLDİRİM RAPORU\n\n", titleFont));
+            document.add(header);
+
+            // 1. Başvuru Özeti
+            document.add(new Paragraph("1. İADE / REVİZYON KONUSU BAŞVURU BİLGİLERİ", sectionFont));
+            document.add(new Paragraph(" "));
+            PdfPTable subTable = new PdfPTable(4);
+            subTable.setWidthPercentage(100);
+            subTable.setWidths(new float[]{25, 25, 25, 25});
+
+            addCell(subTable, "Referans No:", boldFont, Color.LIGHT_GRAY);
+            addCell(subTable, data.submission().getReferenceNo(), regularFont, Color.WHITE);
+            addCell(subTable, "Proje Kodu / Tür:", boldFont, Color.LIGHT_GRAY);
+            String codeType = (data.submission().getProjectCode() != null ? data.submission().getProjectCode() + " - " : "")
+                    + data.submission().getSubmissionType().name();
+            addCell(subTable, codeType, regularFont, Color.WHITE);
+
+            addCell(subTable, "Yürütücü:", boldFont, Color.LIGHT_GRAY);
+            String yurutucu = (data.submission().getApplicantTitle() != null ? data.submission().getApplicantTitle() + " " : "")
+                    + data.submission().getApplicantName();
+            addCell(subTable, yurutucu, regularFont, Color.WHITE);
+            addCell(subTable, "İncelenen Versiyon:", boldFont, Color.LIGHT_GRAY);
+            addCell(subTable, "v" + data.version().getVersionNo(), regularFont, Color.WHITE);
+
+            addCell(subTable, "Proje Başlığı:", boldFont, Color.LIGHT_GRAY);
+            PdfPCell titleCell = new PdfPCell(new Phrase(data.submission().getTitle(), regularFont));
+            titleCell.setColspan(3);
+            titleCell.setPadding(4);
+            subTable.addCell(titleCell);
+
+            document.add(subTable);
+            document.add(new Paragraph(" "));
+
+            // 2. Yürütücüye Resmi Bildirim Metni
+            document.add(new Paragraph("2. YÜRÜTÜCÜ İADE VE REVİZYON BİLDİRİM METNİ", sectionFont));
+            document.add(new Paragraph(" "));
+            String draftText = buildRevisionText(data);
+            Paragraph draftPara = new Paragraph(draftText, regularFont);
+            draftPara.setSpacingAfter(12f);
+            document.add(draftPara);
+
+            // 3. Tespit Edilen Eksiklikler ve Mevzuat İhlalleri Tablosu
+            document.add(new Paragraph("3. GİDERİLMESİ GEREKEN MEVZUAT EKSİKLİKLERİ VE İHLALLER", sectionFont));
+            document.add(new Paragraph(" "));
+            PdfPTable findingTable = new PdfPTable(5);
+            findingTable.setWidthPercentage(100);
+            findingTable.setWidths(new float[]{18, 28, 22, 16, 16});
+
+            addCell(findingTable, "Kural Kodu", boldFont, new Color(254, 226, 226));
+            addCell(findingTable, "Tespit Edilen Eksiklik / İhlal", boldFont, new Color(254, 226, 226));
+            addCell(findingTable, "Mevzuat Dayanağı", boldFont, new Color(254, 226, 226));
+            addCell(findingTable, "Beklenen Değer", boldFont, new Color(254, 226, 226));
+            addCell(findingTable, "Mevcut Değer", boldFont, new Color(254, 226, 226));
+
+            List<FindingDto> issueFindings = data.findings().stream()
+                    .filter(f -> f.severity() == FindingSeverity.VIOLATION || f.severity() == FindingSeverity.MISSING_DOCUMENT)
+                    .toList();
+            List<FindingDto> rowsToRender = issueFindings.isEmpty() ? data.findings() : issueFindings;
+
+            if (rowsToRender.isEmpty()) {
+                PdfPCell emptyCell = new PdfPCell(new Phrase("Kayıtlı bulgu bulunmamaktadır.", regularFont));
+                emptyCell.setColspan(5);
+                emptyCell.setPadding(4);
+                findingTable.addCell(emptyCell);
+            } else {
+                for (FindingDto f : rowsToRender) {
+                    addCell(findingTable, f.ruleCode(), regularFont, Color.WHITE);
+                    addCell(findingTable, f.titleTr() + " - " + f.explanationTr(), regularFont, Color.WHITE);
+                    addCell(findingTable, f.regulationDocName() + " (" + f.regulationArticleRef() + ")", regularFont, Color.WHITE);
+                    addCell(findingTable, f.expectedValue() != null ? f.expectedValue() : "-", regularFont, Color.WHITE);
+                    addCell(findingTable, f.actualValue() != null ? f.actualValue() : "-", boldFont, new Color(254, 242, 242));
+                }
+            }
+            document.add(findingTable);
+            document.add(new Paragraph(" "));
+
+            // 4. İmza ve Bilgilendirme
+            document.add(new Paragraph("4. REVİZYON TESLİM TALİMATI VE ONAY", sectionFont));
+            document.add(new Paragraph(
+                    "Yukarıda mevzuat dayanakları ile belirtilen eksikliklerin giderilerek güncel başvuru paketinin (v"
+                            + (data.version().getVersionNo() + 1)
+                            + ") en geç 15 (on beş) gün içerisinde BAP Otomasyon Sistemi (bap2.mersin.edu.tr) üzerinden yeniden yüklenmesi gerekmektedir. "
+                            + "Eksiklikler giderilmeden başvuru dosyası BAP Komisyonuna (Profesör Kurulu) sevk edilemez.\n\n",
+                    regularFont
+            ));
+
+            PdfPTable signTable = new PdfPTable(2);
+            signTable.setWidthPercentage(100);
+            signTable.setWidths(new float[]{50, 50});
+
+            PdfPCell sign1 = new PdfPCell();
+            sign1.setBorder(Rectangle.NO_BORDER);
+            sign1.addElement(new Paragraph("Ön İnceleme Görevlisi\n\n\n", regularFont));
+            sign1.addElement(new Paragraph(data.officerName(), boldFont));
+            sign1.addElement(new Paragraph("MEÜ BAP Koordinasyon Birimi", regularFont));
+            signTable.addCell(sign1);
+
+            PdfPCell sign2 = new PdfPCell();
+            sign2.setBorder(Rectangle.NO_BORDER);
+            sign2.addElement(new Paragraph("Tebellüğ Eden Proje Yürütücüsü\n\n\n", regularFont));
+            sign2.addElement(new Paragraph(yurutucu, boldFont));
+            sign2.addElement(new Paragraph(data.submission().getDepartment() != null ? data.submission().getDepartment() : "", regularFont));
+            signTable.addCell(sign2);
+
+            document.add(signTable);
+            document.close();
+        } catch (Exception e) {
+            log.error("Revision PDF generation failed: {}", e.getMessage(), e);
+            throw new RuntimeException("Revizyon PDF raporu üretilemedi: " + e.getMessage(), e);
+        }
+
+        return baos.toByteArray();
+    }
+
+    public byte[] exportRevisionDocx(UUID submissionId, int versionNo) {
+        ExportData data = collectData(submissionId, versionNo);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
+        try (XWPFDocument doc = new XWPFDocument()) {
+            XWPFParagraph titlePara = doc.createParagraph();
+            titlePara.setAlignment(ParagraphAlignment.CENTER);
+            XWPFRun r1 = titlePara.createRun();
+            r1.setBold(true);
+            r1.setFontSize(13);
+            r1.setText("T.C. MERSİN ÜNİVERSİTESİ");
+            r1.addBreak();
+            r1.setText("BİLİMSEL ARAŞTIRMA PROJELERİ (BAP) KOORDİNASYON BİRİMİ");
+            r1.addBreak();
+            r1.setText("BAŞVURU REVİZYON VE EKSİKLİK BİLDİRİM RAPORU");
+            r1.addBreak();
+            r1.addBreak();
+
+            XWPFParagraph p1 = doc.createParagraph();
+            XWPFRun rP1 = p1.createRun();
+            rP1.setBold(true);
+            rP1.setText("1. BAŞVURU KİMLİK BİLGİLERİ");
+
+            XWPFTable t1 = doc.createTable(4, 2);
+            t1.getRow(0).getCell(0).setText("Referans No / Versiyon:");
+            t1.getRow(0).getCell(1).setText(data.submission().getReferenceNo() + " (v" + data.version().getVersionNo() + ")");
+            t1.getRow(1).getCell(0).setText("Proje Kodu / Türü:");
+            t1.getRow(1).getCell(1).setText((data.submission().getProjectCode() != null ? data.submission().getProjectCode() + " - " : "") + data.submission().getSubmissionType().name());
+            t1.getRow(2).getCell(0).setText("Yürütücü:");
+            t1.getRow(2).getCell(1).setText((data.submission().getApplicantTitle() != null ? data.submission().getApplicantTitle() + " " : "") + data.submission().getApplicantName());
+            t1.getRow(3).getCell(0).setText("Proje Başlığı:");
+            t1.getRow(3).getCell(1).setText(data.submission().getTitle());
+
+            XWPFParagraph pDraftTitle = doc.createParagraph();
+            pDraftTitle.createRun().addBreak();
+            XWPFRun rDraftTitle = pDraftTitle.createRun();
+            rDraftTitle.setBold(true);
+            rDraftTitle.setText("2. YÜRÜTÜCÜ İADE VE REVİZYON BİLDİRİM METNİ");
+
+            XWPFParagraph pDraft = doc.createParagraph();
+            pDraft.createRun().setText(buildRevisionText(data));
+
+            XWPFParagraph p2 = doc.createParagraph();
+            p2.createRun().addBreak();
+            XWPFRun rP2 = p2.createRun();
+            rP2.setBold(true);
+            rP2.setText("3. GİDERİLMESİ GEREKEN MEVZUAT EKSİKLİKLERİ VE İHLALLER");
+
+            XWPFTable t2 = doc.createTable();
+            XWPFTableRow headerRow = t2.getRow(0);
+            headerRow.getCell(0).setText("Kural Kodu");
+            headerRow.addNewTableCell().setText("Eksiklik / İhlal Açıklaması");
+            headerRow.addNewTableCell().setText("Mevzuat Dayanağı");
+            headerRow.addNewTableCell().setText("Beklenen");
+            headerRow.addNewTableCell().setText("Tespit Edilen");
+
+            List<FindingDto> issueFindings = data.findings().stream()
+                    .filter(f -> f.severity() == FindingSeverity.VIOLATION || f.severity() == FindingSeverity.MISSING_DOCUMENT)
+                    .toList();
+            List<FindingDto> rowsToRender = issueFindings.isEmpty() ? data.findings() : issueFindings;
+
+            for (FindingDto f : rowsToRender) {
+                XWPFTableRow row = t2.createRow();
+                row.getCell(0).setText(f.ruleCode());
+                row.getCell(1).setText(f.titleTr() + ": " + f.explanationTr());
+                row.getCell(2).setText(f.regulationDocName() + " - " + f.regulationArticleRef());
+                row.getCell(3).setText(f.expectedValue() != null ? f.expectedValue() : "-");
+                row.getCell(4).setText(f.actualValue() != null ? f.actualValue() : "-");
+            }
+
+            doc.write(baos);
+        } catch (Exception e) {
+            log.error("Revision DOCX generation failed: {}", e.getMessage(), e);
+            throw new RuntimeException("Revizyon DOCX raporu üretilemedi: " + e.getMessage(), e);
+        }
+
+        return baos.toByteArray();
+    }
+
+    private String buildRevisionText(ExportData data) {
+        if (data.evaluation() != null && data.evaluation().getRevisionDraftTr() != null && !data.evaluation().getRevisionDraftTr().isBlank()) {
+            return data.evaluation().getRevisionDraftTr();
+        }
+        StringBuilder sb = new StringBuilder();
+        String yurutucu = (data.submission().getApplicantTitle() != null ? data.submission().getApplicantTitle() + " " : "")
+                + data.submission().getApplicantName();
+        sb.append("Sayın ").append(yurutucu).append(",\n\n");
+        sb.append(data.submission().getReferenceNo()).append(" referans numaralı ve \"")
+                .append(data.submission().getTitle())
+                .append("\" başlıklı BAP başvurunuzun ön incelemesi sonucunda aşağıdaki idari/şekli/mali mevzuat eksiklikleri tespit edilmiştir:\n\n");
+
+        List<FindingDto> issues = data.findings().stream()
+                .filter(f -> f.severity() == FindingSeverity.VIOLATION || f.severity() == FindingSeverity.MISSING_DOCUMENT)
+                .toList();
+        int idx = 1;
+        for (FindingDto f : issues) {
+            sb.append(idx++).append(". ").append(f.titleTr())
+                    .append(" (").append(f.regulationDocName()).append(" - ").append(f.regulationArticleRef()).append("): ")
+                    .append(f.explanationTr()).append("\n");
+        }
+        sb.append("\nBelirtilen eksikliklerin giderilerek revize dosyanın BAP Otomasyon Sistemi üzerinden yeniden yüklenmesi rica olunur.\n");
+        sb.append("Mersin Üniversitesi BAP Koordinasyon Birimi");
+        return sb.toString();
+    }
+
     private void addCell(PdfPTable table, String text, Font font, Color bgColor) {
         PdfPCell cell = new PdfPCell(new Phrase(text != null ? text : "-", font));
         cell.setBackgroundColor(bgColor);

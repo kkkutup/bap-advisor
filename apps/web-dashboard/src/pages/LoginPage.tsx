@@ -7,7 +7,7 @@ export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const { login, quickLogin } = useAuth();
   const [email, setEmail] = useState('memur@mersin.edu.tr');
-  const [password, setPassword] = useState('BapAdvisor2026!');
+  const [password, setPassword] = useState('Memur123!');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -118,10 +118,10 @@ export const LoginPage: React.FC = () => {
             </button>
           </form>
 
-          {/* Quick Dev Role Selector */}
+          {/* Quick Role Selector */}
           <div className="mt-8 pt-6 border-t border-slate-200">
             <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 text-center mb-3">
-              Test ve Geliştirici Hızlı Rol Seçimi
+              Birim Yetki Profilleri
             </p>
             <div className="grid grid-cols-2 gap-2">
               <button
@@ -177,7 +177,7 @@ export const LoginPage: React.FC = () => {
 
         <div className="mt-4 text-center text-[11px] text-slate-500 flex items-center justify-center gap-1.5">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-          <span>Spring Security JWT + Rol Tabanlı Yetkilendirme</span>
+          <span>Mersin Üniversitesi BAP Koordinasyon Birimi</span>
         </div>
       </div>
     </div>

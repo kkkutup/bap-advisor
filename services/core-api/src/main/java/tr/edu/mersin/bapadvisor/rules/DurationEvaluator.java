@@ -41,24 +41,25 @@ public class DurationEvaluator implements RuleEvaluator {
     private void evaluateNewProjectDuration(StructuredSubmissionDto submission, RuleLimitsContext context, List<FindingDto> findings) {
         Integer requestedMonths = submission.requestedDurationMonths();
         String code = submission.detectedProjectCode();
+        int cap = context.getProjectDurationCapMonths(code);
 
-        if (requestedMonths == null) {
+        if (requestedMonths == null || requestedMonths <= 0) {
             findings.add(FindingBuilder.create(
                     DeterministicRuleConstants.RULE_DURATION_MAX_36M,
                     RuleCategory.DURATION,
                     FindingSeverity.MISSING_DOCUMENT,
-                    "Talep Edilen Proje Süresi Belirtilmemiş",
-                    "Başvuru formunda talep edilen proje süresi (ay) tespit edilemedi.",
+                    "Talep Edilen Proje Süresi Eksik / Belirtilmemiş",
+                    "Başvuru formunda geçerli bir talep edilen proje süresi (ay) tespit edilemedi"
+                            + (requestedMonths != null && requestedMonths == 0 ? " (0 ay olarak okundu)." : "."),
                     DeterministicRuleConstants.DOC_USUL_ESASLAR,
                     "Madde 8/1",
                     "Projelerin başlangıç ve bitiş tarihleri ile talep edilen toplam süre formda açıkça belirtilmelidir.",
-                    "<= 36 ay",
-                    "Belirtilmemiş"
+                    "1 - " + cap + " ay",
+                    requestedMonths != null && requestedMonths == 0 ? "0 ay (Eksik)" : "Belirtilmemiş"
             ));
             return;
         }
 
-        int cap = context.getProjectDurationCapMonths(code);
         boolean isThesis = code != null && code.toUpperCase().startsWith("TP");
 
         if (requestedMonths > cap) {
@@ -97,7 +98,7 @@ public class DurationEvaluator implements RuleEvaluator {
         Integer requestedMonths = submission.requestedDurationMonths();
         String code = submission.detectedProjectCode();
 
-        if (existingMonths == null || requestedMonths == null) {
+        if (existingMonths == null || existingMonths <= 0 || requestedMonths == null || requestedMonths <= 0) {
             findings.add(FindingBuilder.create(
                     DeterministicRuleConstants.RULE_DURATION_MAX_36M,
                     RuleCategory.DURATION,
@@ -107,7 +108,7 @@ public class DurationEvaluator implements RuleEvaluator {
                     DeterministicRuleConstants.DOC_USUL_ESASLAR,
                     "Madde 8/2",
                     "Yürütücüler güncel sözleşme süresini ve talep edilen ek süreyi gerekçesiyle belirtmelidir.",
-                    "Mevcut ve Ek Süre",
+                    "Mevcut ve Ek Süre (> 0 ay)",
                     "Eksik"
             ));
             return;

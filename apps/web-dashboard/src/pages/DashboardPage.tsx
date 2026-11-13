@@ -25,12 +25,24 @@ export const DashboardPage: React.FC = () => {
 
   useEffect(() => {
     Promise.all([
-      analyticsApi.getAnalyticsOverview(),
-      submissionsApi.listSubmissions({ size: 6 }),
+      analyticsApi.getAnalyticsOverview().catch(() => ({
+        total_submissions_count: 0,
+        status_breakdown: {},
+        submission_type_breakdown: {},
+        top_violated_articles: [],
+        average_review_hours: 0,
+      })),
+      submissionsApi.listSubmissions({ size: 6 }).catch(() => ({
+        content: [],
+        total_elements: 0,
+        total_pages: 0,
+        page_number: 0,
+        page_size: 6,
+      })),
     ])
       .then(([a, subs]) => {
         setAnalytics(a);
-        setQueue(subs.content);
+        setQueue(subs.content || []);
       })
       .finally(() => setLoading(false));
   }, []);

@@ -72,6 +72,8 @@ data/uploads/*
 data/regulations/*.pdf
 data/regulations/.local_rag_index.*
 !data/regulations/.gitkeep
+services/core-api/data/
+services/ai-engine/data/
 
 # Temporary & Log files
 *.log

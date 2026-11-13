@@ -1,4 +1,4 @@
-import { apiRequest } from './client';
+import { apiRequest, isForceOffline } from './client';
 import {
   EvaluationResultResponse,
   EvaluationModuleFlagsDto,
@@ -25,7 +25,8 @@ export const evaluationApi = {
           body: JSON.stringify(flags || {}),
         }
       );
-    } catch {
+    } catch (err) {
+      if (!isForceOffline()) throw err;
       // Mock result fallback based on version
       if (versionNo === 1 && submissionId === 'sub-001') {
         return MOCK_EVALUATION_RESULT_SUB001_V1;
@@ -42,7 +43,8 @@ export const evaluationApi = {
       return await apiRequest<EvaluationResultResponse>(
         `/submissions/${submissionId}/versions/${versionNo}/evaluation`
       );
-    } catch {
+    } catch (err) {
+      if (!isForceOffline()) throw err;
       if (versionNo === 1 && submissionId === 'sub-001') {
         return MOCK_EVALUATION_RESULT_SUB001_V1;
       }
@@ -59,7 +61,8 @@ export const evaluationApi = {
       return await apiRequest<VersionDiffResponse>(`/submissions/${submissionId}/diff`, {
         params: { fromVersion, toVersion },
       });
-    } catch {
+    } catch (err) {
+      if (!isForceOffline()) throw err;
       return MOCK_VERSION_DIFF_SUB001;
     }
   },
@@ -67,18 +70,20 @@ export const evaluationApi = {
   async exportAuditReport(
     submissionId: string,
     versionNo: number,
-    format: 'pdf' | 'docx'
+    format: 'pdf' | 'docx',
+    reportType: 'audit' | 'revision' = 'audit'
   ): Promise<Blob> {
     try {
       return await apiRequest<Blob>(
         `/submissions/${submissionId}/versions/${versionNo}/export`,
         {
-          params: { format },
+          params: { format, type: reportType },
         }
       );
-    } catch {
+    } catch (err) {
+      if (!isForceOffline()) throw err;
       // Create a dummy text blob download in offline mode
-      const dummyContent = `MERSIN UNIVERSITESI BAP KOORDINASYON BIRIMI\nON INCELEME TUTANAGI (${format.toUpperCase()})\nBasvuru ID: ${submissionId}\nVersiyon: v${versionNo}\nTarih: ${new Date().toLocaleDateString('tr-TR')}\nBu belge cevrimdisi onizleme modunda uretilmistir.`;
+      const dummyContent = `MERSIN UNIVERSITESI BAP KOORDINASYON BIRIMI\n${reportType === 'revision' ? 'REVIZYON BILDIRIM RAPORU' : 'ON INCELEME TUTANAGI'} (${format.toUpperCase()})\nBasvuru ID: ${submissionId}\nVersiyon: v${versionNo}\nTarih: ${new Date().toLocaleDateString('tr-TR')}\nBu belge cevrimdisi onizleme modunda uretilmistir.`;
       return new Blob([dummyContent], {
         type: format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       });
@@ -98,7 +103,8 @@ export const evaluationApi = {
           body: JSON.stringify({ question }),
         }
       );
-    } catch {
+    } catch (err) {
+      if (!isForceOffline()) throw err;
       // High quality realistic Turkish legal RAG answer fallback
       const q = question.toLowerCase();
       if (q.includes('bilgisayar') || q.includes('laptop') || q.includes('cihaz')) {
